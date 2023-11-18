@@ -13,6 +13,7 @@ type Extractor interface {
 }
 
 // Shared struct
+// TODO: Should return struct or error
 func Runner(e interface{ Extractor }) {
 	// fmt.Println("URL ", r.URL)
 	e.Run()
