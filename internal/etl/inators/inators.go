@@ -8,14 +8,12 @@ package inators
  * https://gobyexample.com/interfaces
  */
 
-// Shared struct
-type Resource struct {
-	URL string
-}
 type Extractor interface {
-	New()
+	Run()
 }
 
-func Run(e Extractor) {
-	e.New()
+// Shared struct
+func Runner(e interface{ Extractor }) {
+	// fmt.Println("URL ", r.URL)
+	e.Run()
 }

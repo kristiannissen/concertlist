@@ -13,7 +13,6 @@ type Resource struct {
 	URL string
 }
 
-func (r Resource) New(e interface{ Extractor }) {
-	fmt.Println("URL ", r.URL)
-	e.Run()
+func (r Resource) Run() {
+	fmt.Println("Boilerplate Run: ", r.URL)
 }

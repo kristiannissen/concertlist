@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
-	"internal/etl/boilerplate"
+	"concertlist/internal/etl/boilerplate"
+	"concertlist/internal/etl/inators"
 )
 
 func main() {
@@ -20,5 +20,5 @@ func main() {
 	*/
 	bookstore := boilerplate.Resource{URL: "https://books.toscrape.com/"}
 
-	fmt.Println("Hello Kitty")
+	inators.Runner(bookstore)
 }
