@@ -1,19 +1,24 @@
 package main
 
 import (
-	"concertlist/internal/etl/richtergladsaxe"
 	"fmt"
+	"internal/etl/boilerplate"
 )
 
 func main() {
 	// Create a channel
-	ok := make(chan string)
+	/*
+		ok := make(chan string)
 
-	// Perfor async
-	go func() {
-		ok <- richtergladsaxe.Hello()
-	}()
+		// Perfor async
+		go func() {
+			ok <- richtergladsaxe.Hello()
+		}()
 
-	msg := <-ok
-	fmt.Println(msg)
+		msg := <-ok
+		fmt.Println(msg)
+	*/
+	bookstore := boilerplate.Resource{URL: "https://books.toscrape.com/"}
+
+	fmt.Println("Hello Kitty")
 }
