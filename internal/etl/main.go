@@ -5,6 +5,10 @@ import (
 	"concertlist/internal/etl/inators"
 )
 
+/**
+* TODO: Create colly configuration
+ * Pass colly as argument
+*/
 func main() {
 	// Create a channel
 	/*
