@@ -63,15 +63,15 @@ func TestGetAllEvents(t *testing.T) {
 
 func TestGetEvent(t *testing.T) {
 	e := Event{Artist: "Ac/CD"}
-	e.Id, _ = e.UpSert()
+	e.ID, _ = e.UpSert()
 
-	evnt, err := e.GetEvent(e.Id)
+	evnt, err := e.GetEvent(e.ID)
 
 	if err != nil {
 		t.Error("Error: ", err)
 	}
 
 	if e.Artist != evnt.Artist {
-		t.Errorf("Want %s got %s", e.Id, evnt.Id)
+		t.Errorf("Want %s got %s", e.ID, evnt.ID)
 	}
 }

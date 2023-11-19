@@ -1,3 +1,5 @@
+// Package dataaccess implements methods for creating,
+// updating and fetching data objects such as events
 package dataaccess
 
 import (
@@ -22,14 +24,12 @@ const (
 
 var db *c.DB
 
-/**
- *
- */
+// An Event holds relevant fields
 type Event struct {
 	Artist string
 	Venue  string
 	When   time.Time
-	Id     string
+	ID     string
 }
 
 func init() {
@@ -50,22 +50,21 @@ func init() {
 	}
 }
 
+// UpSert inserts or updates the current Event
+// and returns either a string ID or an error
 func (e *Event) UpSert() (string, error) {
 	// If Id is "" insert
 	// Otherwise update
 	doc := d.NewDocument()
 	var err error
-	if e.Id == "" {
+	if e.ID == "" {
 		doc.Set("Artist", e.Artist)
 		doc.Set("Venue", e.Venue)
-		e.Id, err = db.InsertOne(collectionName, doc)
-		return e.Id, err
-	} else {
-		err = db.Update(query.NewQuery(collectionName).Where(query.Field("Id").Eq(e.Id)), e.mapFields())
-		return e.Id, err
+		e.ID, err = db.InsertOne(collectionName, doc)
+		return e.ID, err
 	}
-
-	return "", errors.New("UpSert failed")
+	err = db.Update(query.NewQuery(collectionName).Where(query.Field("ID").Eq(e.ID)), e.mapFields())
+	return e.ID, err
 }
 
 /**
@@ -79,16 +78,14 @@ func (e *Event) mapFields() map[string]interface{} {
 	return event
 }
 
-/**
- * Save batch of Events
- */
+// SaveMultiple saves the events passed
+// and returns an error or nil
 func (e *Event) SaveMultiple([]Event) error {
 	return errors.New("Failed")
 }
 
-/**
- * Get Single Event
- **/
+// GetEvent returns the Event found based on the passed ID
+// or an error
 func (e *Event) GetEvent(id string) (Event, error) {
 	doc, err := db.FindById(collectionName, id)
 
@@ -99,15 +96,16 @@ func (e *Event) GetEvent(id string) (Event, error) {
 	return Event{Artist: doc.Get("Artist").(string), Venue: doc.Get("Venue").(string)}, nil
 }
 
-/**
- * Returns all Events
- */
+// GetAllEvents returns all the events in the collection
 func (e *Event) GetAllEvents() ([]Event, error) {
 	var events []Event
 	docs, err := db.FindAll(query.NewQuery(collectionName).Sort())
 
 	for _, doc := range docs {
-		events = append(events, Event{Artist: doc.Get("Artist").(string)})
+		events = append(events, Event{
+			Artist: doc.Get("Artist").(string),
+			Venue:  doc.Get("Venue").(string),
+		})
 	}
 	return events, err
 }
