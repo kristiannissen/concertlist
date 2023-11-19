@@ -3,11 +3,21 @@ package dataaccess
 import (
 	"encoding/json"
 	"errors"
+	"log"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	c "github.com/ostafen/clover/v2"
 	d "github.com/ostafen/clover/v2/document"
 	"github.com/ostafen/clover/v2/query"
+)
+
+const (
+	collectionName = "events"
+	separator      = os.PathSeparator
+	storage        = "clover.db"
 )
 
 var db *c.DB
@@ -23,10 +33,19 @@ type Event struct {
 }
 
 func init() {
-	db, _ = c.Open("./clover.db")
+	var err error
+	path, _ := os.Getwd()
+	abs, _ := filepath.Abs(strings.Join([]string{path, storage}, string(separator)))
+	db, err = c.Open(abs)
+	// Handle open err
+	if err != nil {
+		log.Fatal("Clover could not open ", err)
+	}
+	coll, _ := db.HasCollection(collectionName)
 	// Create collection
-	if _, err := db.HasCollection("events"); err != nil {
-		db.CreateCollection("events")
+	if coll == false {
+		log.Println("Create collection")
+		db.CreateCollection(collectionName)
 	}
 }
 
@@ -36,12 +55,12 @@ func (e *Event) UpSert() (string, error) {
 	doc := d.NewDocument()
 	var err error
 	if e.Id == "" {
-		doc.Set("artist", e.Artist)
-		doc.Set("venue", e.Venue)
-		e.Id, err = db.InsertOne("events", doc)
+		doc.Set("Artist", e.Artist)
+		doc.Set("Venue", e.Venue)
+		e.Id, err = db.InsertOne(collectionName, doc)
 		return e.Id, err
 	} else {
-		db.Update(query.NewQuery("events").Where(query.Field("Id").Eq(e.Id)), e.mapFields())
+		err = db.Update(query.NewQuery(collectionName).Where(query.Field("Id").Eq(e.Id)), e.mapFields())
 		return e.Id, err
 	}
 	db.Close()
@@ -70,7 +89,7 @@ func (e *Event) SaveMultiple([]Event) error {
 /**
  * Get Single Event
  **/
-func (e *Event) GetEvent(id int64) (Event, error) {
+func (e *Event) GetEvent(id string) (Event, error) {
 	return Event{}, errors.New("Failed")
 }
 
@@ -78,5 +97,14 @@ func (e *Event) GetEvent(id int64) (Event, error) {
  * Returns all Events
  */
 func (e *Event) GetAllEvents() ([]Event, error) {
-	return []Event{}, errors.New("Failed")
+	var events []Event
+	docs, err := db.FindAll(query.NewQuery(collectionName).Sort())
+	// defer db.Close()
+
+	log.Println(docs)
+
+	for _, doc := range docs {
+		events = append(events, Event{Artist: doc.Get("Artist").(string)})
+	}
+	return events, err
 }
