@@ -37,6 +37,7 @@ func init() {
 	path, _ := os.Getwd()
 	abs, _ := filepath.Abs(strings.Join([]string{path, storage}, string(separator)))
 	db, err = c.Open(abs)
+
 	// Handle open err
 	if err != nil {
 		log.Fatal("Clover could not open ", err)
@@ -63,7 +64,6 @@ func (e *Event) UpSert() (string, error) {
 		err = db.Update(query.NewQuery(collectionName).Where(query.Field("Id").Eq(e.Id)), e.mapFields())
 		return e.Id, err
 	}
-	db.Close()
 
 	return "", errors.New("UpSert failed")
 }
@@ -90,7 +90,13 @@ func (e *Event) SaveMultiple([]Event) error {
  * Get Single Event
  **/
 func (e *Event) GetEvent(id string) (Event, error) {
-	return Event{}, errors.New("Failed")
+	doc, err := db.FindById(collectionName, id)
+
+	if err != nil {
+		return Event{}, err
+	}
+
+	return Event{Artist: doc.Get("Artist").(string), Venue: doc.Get("Venue").(string)}, nil
 }
 
 /**
@@ -99,9 +105,6 @@ func (e *Event) GetEvent(id string) (Event, error) {
 func (e *Event) GetAllEvents() ([]Event, error) {
 	var events []Event
 	docs, err := db.FindAll(query.NewQuery(collectionName).Sort())
-	// defer db.Close()
-
-	log.Println(docs)
 
 	for _, doc := range docs {
 		events = append(events, Event{Artist: doc.Get("Artist").(string)})

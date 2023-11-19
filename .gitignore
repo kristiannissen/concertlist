@@ -22,3 +22,5 @@ go.work
 
 # Anything *.db
 *.db
+# Dump from DB
+events.json

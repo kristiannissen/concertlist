@@ -35,8 +35,6 @@ func TestUpSert(t *testing.T) {
 	e := Event{Artist: "Rival Sons"}
 	id, _ := e.UpSert()
 
-	t.Logf("id %s", id)
-
 	if id == "" {
 		t.Error("Event Id not set")
 	}
@@ -54,13 +52,26 @@ func TestMapFields(t *testing.T) {
 
 func TestGetAllEvents(t *testing.T) {
 	e := Event{Artist: "Led Zeppelin"}
-	id, err := e.UpSert()
-	t.Log("id ", id, err)
+	e.UpSert()
 
-	events, err := e.GetAllEvents()
-	t.Log("events ", events)
+	_, err := e.GetAllEvents()
 
 	if err != nil {
 		t.Error("Could not get all events")
+	}
+}
+
+func TestGetEvent(t *testing.T) {
+	e := Event{Artist: "Ac/CD"}
+	e.Id, _ = e.UpSert()
+
+	evnt, err := e.GetEvent(e.Id)
+
+	if err != nil {
+		t.Error("Error: ", err)
+	}
+
+	if e.Artist != evnt.Artist {
+		t.Errorf("Want %s got %s", e.Id, evnt.Id)
 	}
 }
