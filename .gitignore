@@ -24,3 +24,5 @@ go.work
 *.db
 # Dump from DB
 events.json
+# Cache dir
+cache/
