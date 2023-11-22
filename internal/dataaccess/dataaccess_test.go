@@ -2,8 +2,6 @@ package dataaccess
 
 import (
 	"os"
-	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -14,9 +12,7 @@ func setup() {
 }
 
 func teardown() {
-	path, _ := os.Getwd()
-	file, _ := filepath.Abs(strings.Join([]string{path, "events.json"}, string(separator)))
-	db.ExportCollection(collectionName, file)
+
 }
 
 func TestMain(m *testing.M) {

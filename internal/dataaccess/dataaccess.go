@@ -8,8 +8,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
-	"time"
 
 	c "github.com/ostafen/clover/v2"
 	d "github.com/ostafen/clover/v2/document"
@@ -18,8 +16,6 @@ import (
 
 const (
 	collectionName = "events"
-	separator      = os.PathSeparator
-	storage        = "clover.db"
 )
 
 var db *c.DB
@@ -28,15 +24,14 @@ var db *c.DB
 type Event struct {
 	Artist string
 	Venue  string
-	When   time.Time
+	When   string
 	ID     string
 }
 
 func init() {
 	var err error
-	path, _ := os.Getwd()
-	abs, _ := filepath.Abs(strings.Join([]string{path, storage}, string(separator)))
-	db, err = c.Open(abs)
+	file, _ := filepath.Abs(os.Getenv("GLOVER_PATH"))
+	db, err = c.Open(file)
 
 	// Handle open err
 	if err != nil {
