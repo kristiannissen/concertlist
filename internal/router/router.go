@@ -11,8 +11,9 @@ import (
 func NewRouter() *http.ServeMux {
 	mux := http.NewServeMux()
 
-	// Register the hello handler for the root path
-	mux.HandleFunc("GET /", handler.HelloHandler)
+	// Register the hello handler for all paths
+	mux.HandleFunc("/", handler.HelloHandler)
+	mux.HandleFunc("/{...}", handler.HelloHandler)
 
 	return mux
 }
