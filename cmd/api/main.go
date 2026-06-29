@@ -6,8 +6,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-
-	"github.com/kristiannissen/concertlist/internal/adapters"
 )
 
 // main is the entry point for Vercel's Go runtime.
