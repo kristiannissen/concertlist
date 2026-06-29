@@ -1,4 +1,4 @@
-module concertlist
+module github.com/kristiannissen/concertlist
 
 go 1.21.4
 
