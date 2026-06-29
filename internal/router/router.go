@@ -11,9 +11,12 @@ import (
 func NewRouter() *http.ServeMux {
 	mux := http.NewServeMux()
 
-	// Register the hello handler for all paths
-	mux.HandleFunc("/", handler.HelloHandler)
-	mux.HandleFunc("/{...}", handler.HelloHandler)
+	// Health check endpoint
+	mux.HandleFunc("GET /", handler.HelloHandler)
+
+	// For now, just keep the hello handler for all paths
+	// The events endpoint will be added when we wire up the dependencies
+	mux.HandleFunc("GET /{...}", handler.HelloHandler)
 
 	return mux
 }
