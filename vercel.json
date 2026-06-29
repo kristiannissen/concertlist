@@ -1,11 +1,9 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "cleanUrls": true,
-  "trailingSlash": false,
+  "version": 2,
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "api/index.go"
+      "source": "/api/:path*",
+      "destination": "/api/index.go"
     }
   ]
 }
