@@ -2,11 +2,10 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "cleanUrls": true,
   "trailingSlash": false,
-  "buildCommand": "go build -o server ./cmd/api",
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "server"
+      "destination": "/api/index"
     }
   ]
 }
