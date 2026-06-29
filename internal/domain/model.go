@@ -1,5 +1,7 @@
-// Package domain contains the core business models and interfaces.
+// Package domain contains core business models and logic.
 package domain
+
+import "time"
 
 // MusicEvent represents a music event with schema.org context.
 type MusicEvent struct {
@@ -31,4 +33,20 @@ type PostalAddress struct {
 type Performer struct {
 	Type string `json:"@type"`
 	Name string `json:"name"`
+}
+
+// Concert represents a simplified concert event for internal use.
+type Concert struct {
+	ID          string `json:"id"`
+	Title       string `json:"title"`
+	Venue       string `json:"venue"`
+	Date        string `json:"date"`
+	Description string `json:"description,omitempty"`
+	URL         string `json:"url,omitempty"`
+}
+
+// ExtractionJob represents a job to extract data from a venue.
+type ExtractionJob struct {
+	Venue     string    `json:"venue"`
+	Timestamp time.Time `json:"timestamp"`
 }

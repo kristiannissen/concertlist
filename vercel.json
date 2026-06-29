@@ -1,9 +1,19 @@
 {
-  "version": 2,
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    {
+      "path": "/api/cron",
+      "schedule": "0 * * * *"
+    }
+  ],
   "rewrites": [
     {
-      "source": "/api/:path*",
-      "destination": "/api/index.go"
+      "source": "/api/cron",
+      "destination": "cmd/cron/main.go"
+    },
+    {
+      "source": "/api/queue",
+      "destination": "api/queue.go"
     }
   ]
 }
