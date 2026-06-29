@@ -6,13 +6,6 @@
       "schedule": "0 * * * *"
     }
   ],
-  "queues": {
-    "concert-extraction": {
-      "memory": 3000,
-      "maxRetries": 3,
-      "timeout": 300
-    }
-  },
   "rewrites": [
     {
       "source": "/api/cron",
