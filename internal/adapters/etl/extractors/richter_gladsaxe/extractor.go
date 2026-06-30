@@ -3,6 +3,8 @@ package richter_gladsaxe
 
 import (
 	"context"
+	"log"
+	"strings"
 
 	"github.com/gocolly/colly/v2"
 	"github.com/kristiannissen/concertlist/internal/domain"
@@ -16,25 +18,15 @@ func NewExtractor() *Extractor {
 	return &Extractor{}
 }
 
-// Extract fetches concert data from Richter Gladsaxe's website.
+// Extract fetches concert data from Richter Gladsaxe's index page.
 func (e *Extractor) Extract(ctx context.Context) ([]domain.Concert, error) {
 	var concerts []domain.Concert
 
 	// Initialize gocolly collector.
 	c := colly.NewCollector(
 		colly.AllowedDomains("richter-gladsaxe.dk"),
+		colly.UserAgent("Mozilla/5.0 (compatible; ConcertList/1.0)"),
 	)
-
-	// Handle HTML parsing.
-	c.OnHTML("div.event", func(h *colly.HTMLElement) {
-		concert := domain.Concert{
-			Title: h.ChildText("h2"),
-			Date:  h.ChildText("span.date"),
-			URL:   h.Request.AbsoluteURL(h.Attr("href")),
-			Venue: "Richter Gladsaxe",
-		}
-		concerts = append(concerts, concert)
-	})
 
 	// Handle context cancellation.
 	go func() {
@@ -42,11 +34,50 @@ func (e *Extractor) Extract(ctx context.Context) ([]domain.Concert, error) {
 		c.Stop()
 	}()
 
-	// Start scraping.
+	// On every .card .text-overlay element, extract date and title.
+	c.OnHTML(".card .text-overlay", func(h *colly.HTMLElement) {
+		// Extract date and title from the text overlay.
+		date := h.ChildText(".date")
+		title := h.ChildText(".title")
+
+		// Clean up whitespace.
+		date = strings.TrimSpace(date)
+		title = strings.TrimSpace(title)
+
+		// Skip if no title or date.
+		if title == "" || date == "" {
+			return
+		}
+
+		// Create a new Concert.
+		concert := domain.Concert{
+			ID:    generateID(title, date), // Simple ID generation.
+			Title: title,
+			Date:  date,
+			Venue: "Richter Gladsaxe",
+			URL:   h.Request.AbsoluteURL(h.Attr("href")),
+		}
+
+		concerts = append(concerts, concert)
+	})
+
+	// Log errors during scraping.
+	c.OnError(func(r *colly.Response, err error) {
+		log.Printf("Failed to scrape %s: %v", r.Request.URL, err)
+	})
+
+	// Start scraping the index page.
 	if err := c.Visit("https://richter-gladsaxe.dk/"); err != nil {
 		return nil, err
 	}
 
+	// Wait for all requests to finish.
 	c.Wait()
+
 	return concerts, nil
+}
+
+// generateID creates a simple ID from the title and date.
+func generateID(title, date string) string {
+	return strings.ToLower(strings.ReplaceAll(title+"-"+date, " ", "-"))
 }
