@@ -1,19 +1,11 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "crons": [
-    {
-      "path": "/api/cron",
-      "schedule": "0 0 * * *"
-    }
-  ],
+  "cleanUrls": true,
+  "trailingSlash": false,
   "rewrites": [
     {
-      "source": "/api/cron",
-      "destination": "cmd/cron/main.go"
-    },
-    {
-      "source": "/api/queue",
-      "destination": "api/queue.go"
+      "source": "/api/(.*)",
+      "destination": "api/index.go"
     }
   ]
 }
