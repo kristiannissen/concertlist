@@ -1,0 +1,59 @@
+name: Go CI and Vercel Deploy
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  # ---------------------------------------------------------
+  # JOB 1: RUN TESTS
+  # ---------------------------------------------------------
+  test:
+    name: Run Go Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21' # Update if your go.mod requires a different version
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run tests
+        # If this step fails (exit code != 0), the entire 'test' job fails.
+        run: go test -v ./...
+
+  # ---------------------------------------------------------
+  # JOB 2: DEPLOY TO VERCEL
+  # ---------------------------------------------------------
+  deploy:
+    name: Deploy to Vercel
+    
+    # CRITICAL LINE: 
+    # This tells GitHub Actions to wait for the 'test' job to finish.
+    # If 'test' fails, this 'deploy' job is automatically SKIPPED.
+    needs: test 
+    
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy to Vercel
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          # If it's a push to main, deploy to Production. 
+          # If it's a PR, deploy a Preview (no --prod flag).
+          vercel-args: ${{ github.event_name == 'push' && '--prod' || '' }}
