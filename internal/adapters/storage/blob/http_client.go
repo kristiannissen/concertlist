@@ -90,8 +90,52 @@ func (c *HTTPClient) Save(ctx context.Context, concerts []domain.Concert) error 
 
 // Load retrieves concerts from Vercel Blob storage.
 func (c *HTTPClient) Load(ctx context.Context) ([]domain.Concert, error) {
-	// TODO: Implement using Vercel Blob HTTP API GET endpoint
-	return nil, nil
+	const defaultPathname = "concerts.json"
+	
+	// Create URL for the stored concerts file
+	url := fmt.Sprintf("%s/%s", c.storageBaseURL, defaultPathname)
+	
+	// Create HTTP request with context
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	
+	// Set Authorization header for private blobs
+	req.Header.Set("Authorization", "Bearer "+c.accessToken)
+	
+	// Create HTTP client and execute request
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute request: %w", err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+
+	// Check response status
+	if resp.StatusCode >= http.StatusBadRequest {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("request failed with status %d: %s", resp.StatusCode, string(body))
+	}
+	
+	// Check if file exists (404)
+	if resp.StatusCode == http.StatusNotFound {
+		return []domain.Concert{}, nil
+	}
+
+	// Read response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	// Unmarshal JSON into concerts
+	var concerts []domain.Concert
+	if err := json.Unmarshal(body, &concerts); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal concerts: %w", err)
+	}
+
+	return concerts, nil
 }
 
 // uploadBlob uploads data to Vercel Blob.
