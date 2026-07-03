@@ -607,7 +607,7 @@ func TestHTTPClient_downloadBlob_ServerError(t *testing.T) {
 		StoreID:       "test-store",
 		AccessToken:   "test-token",
 		APIVersion:    "12",
-		BaseURL:       server.URL,
+		BaseURL:       "https://vercel.com/api/blob",
 		StorageBaseURL: server.URL,
 	}
 
@@ -866,47 +866,290 @@ func TestHTTPClient_deleteBlob_ServerError(t *testing.T) {
 func TestHTTPClient_deleteBlobs(t *testing.T) {
 	t.Parallel()
 
+	// Create test server for deleteBlobs
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Verify request method
+		if r.Method != http.MethodPost {
+			t.Errorf("Expected POST method, got %s", r.Method)
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		// Verify endpoint path
+		if r.URL.Path != "/delete" {
+			t.Errorf("Expected path /delete, got %s", r.URL.Path)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		// Verify headers
+		if r.Header.Get("Authorization") != "Bearer test-token" {
+			t.Errorf("Expected Authorization header to be Bearer test-token, got %s", r.Header.Get("Authorization"))
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		if r.Header.Get("x-vercel-blob-store-id") != "test-store" {
+			t.Errorf("Expected x-vercel-blob-store-id header to be test-store, got %s", r.Header.Get("x-vercel-blob-store-id"))
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		if r.Header.Get("x-api-version") != "12" {
+			t.Errorf("Expected x-api-version header to be 12, got %s", r.Header.Get("x-api-version"))
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		if r.Header.Get("Content-Type") != "application/json" {
+			t.Errorf("Expected Content-Type header to be application/json, got %s", r.Header.Get("Content-Type"))
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		// Verify request body contains URLs
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Errorf("Failed to read request body: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		var request DeleteBlobsRequest
+		if err := json.Unmarshal(body, &request); err != nil {
+			t.Errorf("Failed to unmarshal request body: %v", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		// Verify URLs in request
+		if len(request.URLs) != 2 {
+			t.Errorf("Expected 2 URLs, got %d", len(request.URLs))
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		expectedURLs := []string{
+			"https://test-store.public.blob.vercel-storage.com/file1.txt",
+			"https://test-store.public.blob.vercel-storage.com/file2.txt",
+		}
+		for i, url := range expectedURLs {
+			if request.URLs[i] != url {
+				t.Errorf("Expected URL %s at index %d, got %s", url, i, request.URLs[i])
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+		}
+
+		// Return success with deleted URLs
+		response := DeleteBlobsResponse{
+			Deleted: request.URLs,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(response)
+	}))
+	defer server.Close()
+
 	config := HTTPClientConfig{
 		StoreID:       "test-store",
 		AccessToken:   "test-token",
 		APIVersion:    "12",
-		BaseURL:       "https://vercel.com/api/blob",
+		BaseURL:       server.URL,
 		StorageBaseURL: "https://test-store.public.blob.vercel-storage.com",
 	}
 
 	client := NewHTTPClient(config)
 	ctx := context.Background()
-	urls := []string{"https://test-store.public.blob.vercel-storage.com/test1.txt"}
+	urls := []string{
+		"https://test-store.public.blob.vercel-storage.com/file1.txt",
+		"https://test-store.public.blob.vercel-storage.com/file2.txt",
+	}
 
-	// TODO: Implement test with mock HTTP server
 	err := client.deleteBlobs(ctx, urls)
 	if err != nil {
-		t.Logf("deleteBlobs returned error (expected for skeleton): %v", err)
+		t.Errorf("deleteBlobs failed: %v", err)
+	}
+}
+
+func TestHTTPClient_deleteBlobs_ServerError(t *testing.T) {
+	t.Parallel()
+
+	// Create test server that returns server error
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Internal Server Error"))
+	}))
+	defer server.Close()
+
+	config := HTTPClientConfig{
+		StoreID:       "test-store",
+		AccessToken:   "test-token",
+		APIVersion:    "12",
+		BaseURL:       server.URL,
+		StorageBaseURL: "https://test-store.public.blob.vercel-storage.com",
+	}
+
+	client := NewHTTPClient(config)
+	ctx := context.Background()
+	urls := []string{"https://test-store.public.blob.vercel-storage.com/file1.txt"}
+
+	err := client.deleteBlobs(ctx, urls)
+	if err == nil {
+		t.Error("Expected deleteBlobs to fail with server error")
+	}
+	if !strings.Contains(err.Error(), "500") {
+		t.Errorf("Expected error to contain 500, got: %s", err.Error())
 	}
 }
 
 func TestHTTPClient_getBlobMetadata(t *testing.T) {
 	t.Parallel()
 
+	// Create test server for getBlobMetadata
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Verify request method
+		if r.Method != http.MethodGet {
+			t.Errorf("Expected GET method, got %s", r.Method)
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		// Verify url query parameter
+		if r.URL.Query().Get("url") != "https://test-store.public.blob.vercel-storage.com/test.txt" {
+			t.Errorf("Expected url query param, got %s", r.URL.Query().Get("url"))
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		// Verify headers
+		if r.Header.Get("Authorization") != "Bearer test-token" {
+			t.Errorf("Expected Authorization header to be Bearer test-token, got %s", r.Header.Get("Authorization"))
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		if r.Header.Get("x-vercel-blob-store-id") != "test-store" {
+			t.Errorf("Expected x-vercel-blob-store-id header to be test-store, got %s", r.Header.Get("x-vercel-blob-store-id"))
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		if r.Header.Get("x-api-version") != "12" {
+			t.Errorf("Expected x-api-version header to be 12, got %s", r.Header.Get("x-api-version"))
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		// Return sample blob metadata
+		sampleMetadata := BlobMetadata{
+			Pathname:      "test.txt",
+			ContentType:   "text/plain",
+			ContentLength: 1024,
+			UploadedAt:    "2026-07-01T00:00:00Z",
+			Access:        "public",
+			URL:           "https://test-store.public.blob.vercel-storage.com/test.txt",
+		}
+		
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(sampleMetadata)
+	}))
+	defer server.Close()
+
 	config := HTTPClientConfig{
 		StoreID:       "test-store",
 		AccessToken:   "test-token",
 		APIVersion:    "12",
-		BaseURL:       "https://vercel.com/api/blob",
+		BaseURL:       server.URL,
 		StorageBaseURL: "https://test-store.public.blob.vercel-storage.com",
 	}
 
 	client := NewHTTPClient(config)
 	ctx := context.Background()
-	url := "https://test-store.public.blob.vercel-storage.com/test.txt"
+	blobURL := "https://test-store.public.blob.vercel-storage.com/test.txt"
 
-	// TODO: Implement test with mock HTTP server
-	metadata, err := client.getBlobMetadata(ctx, url)
+	metadata, err := client.getBlobMetadata(ctx, blobURL)
 	if err != nil {
-		t.Logf("getBlobMetadata returned error (expected for skeleton): %v", err)
+		t.Errorf("getBlobMetadata failed: %v", err)
 	}
-	if metadata != nil {
-		t.Logf("Got metadata: %v", metadata)
+
+	// Verify returned metadata
+	if metadata == nil {
+		t.Error("Expected non-nil metadata")
+		return
+	}
+
+	if metadata["pathname"] != "test.txt" {
+		t.Errorf("Expected pathname to be test.txt, got %s", metadata["pathname"])
+	}
+	if metadata["contentType"] != "text/plain" {
+		t.Errorf("Expected contentType to be text/plain, got %s", metadata["contentType"])
+	}
+	if metadata["contentLength"] != "1024" {
+		t.Errorf("Expected contentLength to be 1024, got %s", metadata["contentLength"])
+	}
+	if metadata["access"] != "public" {
+		t.Errorf("Expected access to be public, got %s", metadata["access"])
+	}
+	if metadata["url"] != "https://test-store.public.blob.vercel-storage.com/test.txt" {
+		t.Errorf("Expected url to be %s, got %s", "https://test-store.public.blob.vercel-storage.com/test.txt", metadata["url"])
+	}
+}
+
+func TestHTTPClient_getBlobMetadata_NotFound(t *testing.T) {
+	t.Parallel()
+
+	// Create test server that returns 404
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	config := HTTPClientConfig{
+		StoreID:       "test-store",
+		AccessToken:   "test-token",
+		APIVersion:    "12",
+		BaseURL:       server.URL,
+		StorageBaseURL: "https://test-store.public.blob.vercel-storage.com",
+	}
+
+	client := NewHTTPClient(config)
+	ctx := context.Background()
+	blobURL := "https://test-store.public.blob.vercel-storage.com/nonexistent.txt"
+
+	_, err := client.getBlobMetadata(ctx, blobURL)
+	if err == nil {
+		t.Error("Expected getBlobMetadata to fail with 404")
+	}
+	if !strings.Contains(err.Error(), "404") {
+		t.Errorf("Expected error to contain 404, got: %s", err.Error())
+	}
+}
+
+func TestHTTPClient_getBlobMetadata_ServerError(t *testing.T) {
+	t.Parallel()
+
+	// Create test server that returns server error
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Internal Server Error"))
+	}))
+	defer server.Close()
+
+	config := HTTPClientConfig{
+		StoreID:       "test-store",
+		AccessToken:   "test-token",
+		APIVersion:    "12",
+		BaseURL:       server.URL,
+		StorageBaseURL: "https://test-store.public.blob.vercel-storage.com",
+	}
+
+	client := NewHTTPClient(config)
+	ctx := context.Background()
+	blobURL := "https://test-store.public.blob.vercel-storage.com/test.txt"
+
+	_, err := client.getBlobMetadata(ctx, blobURL)
+	if err == nil {
+		t.Error("Expected getBlobMetadata to fail with server error")
+	}
+	if !strings.Contains(err.Error(), "500") {
+		t.Errorf("Expected error to contain 500, got: %s", err.Error())
 	}
 }
 
