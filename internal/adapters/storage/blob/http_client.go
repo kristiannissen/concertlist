@@ -178,8 +178,34 @@ func (c *HTTPClient) uploadBlob(ctx context.Context, pathname string, data io.Re
 
 // downloadBlob downloads data from Vercel Blob.
 func (c *HTTPClient) downloadBlob(ctx context.Context, pathname string) (io.ReadCloser, error) {
-	// TODO: Implement download using GET /?url={url}
-	return nil, nil
+	// Create URL for the blob file
+	url := fmt.Sprintf("%s/%s", c.storageBaseURL, pathname)
+	
+	// Create HTTP request with context
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	
+	// Set Authorization header for private blobs
+	req.Header.Set("Authorization", "Bearer "+c.accessToken)
+	
+	// Create HTTP client and execute request
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute request: %w", err)
+	}
+	
+	// Check response status
+	if resp.StatusCode >= http.StatusBadRequest {
+		body, _ := io.ReadAll(resp.Body)
+		defer resp.Body.Close() //nolint:errcheck
+		return nil, fmt.Errorf("request failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	// Return the response body for the caller to read and close
+	return resp.Body, nil
 }
 
 // listBlobs lists blobs in the store.
