@@ -13,7 +13,7 @@ jobs:
   test:
     name: Run Go Tests
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -35,11 +35,14 @@ jobs:
   # ---------------------------------------------------------
   deploy:
     name: Deploy to Vercel
-    
-    needs: test 
-    
+
+    # Only runs if the test job succeeds. Vercel's own automatic Git
+    # deployments are disabled (see vercel.json: git.deploymentEnabled),
+    # so this is the only path that triggers a deployment.
+    needs: test
+
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -50,4 +53,5 @@ jobs:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          # Push to main -> production deploy. PR -> preview deploy.
           vercel-args: ${{ github.event_name == 'push' && '--prod' || '' }}
