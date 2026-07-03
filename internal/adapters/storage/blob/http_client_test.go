@@ -199,24 +199,151 @@ func TestHTTPClient_Save_ServerError(t *testing.T) {
 func TestHTTPClient_Load(t *testing.T) {
 	t.Parallel()
 
+	// Create test server that returns sample concerts
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Verify request method
+		if r.Method != http.MethodGet {
+			t.Errorf("Expected GET method, got %s", r.Method)
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		// Verify Authorization header
+		if r.Header.Get("Authorization") != "Bearer test-token" {
+			t.Errorf("Expected Authorization header to be Bearer test-token, got %s", r.Header.Get("Authorization"))
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		// Return sample concerts JSON
+		sampleConcerts := []domain.Concert{
+			{ID: "1", Title: "Test Concert 1", Venue: "Test Venue 1", Date: "2026-07-01"},
+			{ID: "2", Title: "Test Concert 2", Venue: "Test Venue 2", Date: "2026-07-02"},
+		}
+		
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(sampleConcerts)
+	}))
+	defer server.Close()
+
 	config := HTTPClientConfig{
 		StoreID:       "test-store",
 		AccessToken:   "test-token",
 		APIVersion:    "12",
 		BaseURL:       "https://vercel.com/api/blob",
-		StorageBaseURL: "https://test-store.public.blob.vercel-storage.com",
+		StorageBaseURL: server.URL,
 	}
 
 	client := NewHTTPClient(config)
 	ctx := context.Background()
 
-	// TODO: Implement test with mock HTTP server
 	concerts, err := client.Load(ctx)
 	if err != nil {
-		t.Logf("Load returned error (expected for skeleton): %v", err)
+		t.Errorf("Load failed: %v", err)
 	}
-	if concerts != nil {
-		t.Logf("Loaded %d concerts", len(concerts))
+
+	if len(concerts) != 2 {
+		t.Errorf("Expected 2 concerts, got %d", len(concerts))
+	}
+
+	if concerts[0].ID != "1" {
+		t.Errorf("Expected first concert ID to be 1, got %s", concerts[0].ID)
+	}
+
+	if concerts[1].ID != "2" {
+		t.Errorf("Expected second concert ID to be 2, got %s", concerts[1].ID)
+	}
+}
+
+func TestHTTPClient_Load_NotFound(t *testing.T) {
+	t.Parallel()
+
+	// Create test server that returns 404
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	config := HTTPClientConfig{
+		StoreID:       "test-store",
+		AccessToken:   "test-token",
+		APIVersion:    "12",
+		BaseURL:       "https://vercel.com/api/blob",
+		StorageBaseURL: server.URL,
+	}
+
+	client := NewHTTPClient(config)
+	ctx := context.Background()
+
+	concerts, err := client.Load(ctx)
+	if err != nil {
+		t.Errorf("Load should not return error for 404, got: %v", err)
+	}
+
+	if len(concerts) != 0 {
+		t.Errorf("Expected empty concerts for 404, got %d", len(concerts))
+	}
+}
+
+func TestHTTPClient_Load_InvalidJSON(t *testing.T) {
+	t.Parallel()
+
+	// Create test server that returns invalid JSON
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("invalid json"))
+	}))
+	defer server.Close()
+
+	config := HTTPClientConfig{
+		StoreID:       "test-store",
+		AccessToken:   "test-token",
+		APIVersion:    "12",
+		BaseURL:       "https://vercel.com/api/blob",
+		StorageBaseURL: server.URL,
+	}
+
+	client := NewHTTPClient(config)
+	ctx := context.Background()
+
+	_, err := client.Load(ctx)
+	if err == nil {
+		t.Error("Expected Load to fail with invalid JSON")
+	}
+	if !strings.Contains(err.Error(), "failed to unmarshal concerts") {
+		t.Errorf("Expected unmarshal error, got: %s", err.Error())
+	}
+}
+
+func TestHTTPClient_Load_ServerError(t *testing.T) {
+	t.Parallel()
+
+	// Create test server that returns server error
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Internal Server Error"))
+	}))
+	defer server.Close()
+
+	config := HTTPClientConfig{
+		StoreID:       "test-store",
+		AccessToken:   "test-token",
+		APIVersion:    "12",
+		BaseURL:       "https://vercel.com/api/blob",
+		StorageBaseURL: server.URL,
+	}
+
+	client := NewHTTPClient(config)
+	ctx := context.Background()
+
+	_, err := client.Load(ctx)
+	if err == nil {
+		t.Error("Expected Load to fail with server error")
+	}
+	if !strings.Contains(err.Error(), "500") {
+		t.Errorf("Expected error to contain 500, got: %s", err.Error())
 	}
 }
 
