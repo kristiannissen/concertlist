@@ -48,10 +48,13 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Deploy to Vercel
-        uses: amondnet/vercel-action@v25
+        uses: amondnet/vercel-action@v42
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
           # Push to main -> production deploy. PR -> preview deploy.
-          vercel-args: ${{ github.event_name == 'push' && '--prod' || '' }}
+          # Uses the action's API-based deployment (no vercel-args), which
+          # talks to Vercel directly instead of shelling out to a bundled
+          # CLI, avoiding CLI-version-mismatch errors like v25 hit.
+          target: ${{ github.event_name == 'push' && 'production' || 'preview' }}
