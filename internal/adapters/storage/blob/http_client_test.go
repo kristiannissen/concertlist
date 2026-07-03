@@ -607,7 +607,7 @@ func TestHTTPClient_downloadBlob_ServerError(t *testing.T) {
 		StoreID:       "test-store",
 		AccessToken:   "test-token",
 		APIVersion:    "12",
-		BaseURL:       "https://vercel.com/api/blob",
+		BaseURL:       server.URL,
 		StorageBaseURL: server.URL,
 	}
 
@@ -742,21 +742,124 @@ func TestHTTPClient_listBlobs_ServerError(t *testing.T) {
 func TestHTTPClient_deleteBlob(t *testing.T) {
 	t.Parallel()
 
+	// Create test server for deleteBlob
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Verify request method
+		if r.Method != http.MethodDelete {
+			t.Errorf("Expected DELETE method, got %s", r.Method)
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		// Verify pathname query parameter
+		if r.URL.Query().Get("pathname") != "test-file.txt" {
+			t.Errorf("Expected pathname=test-file.txt, got %s", r.URL.Query().Get("pathname"))
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		// Verify headers
+		if r.Header.Get("Authorization") != "Bearer test-token" {
+			t.Errorf("Expected Authorization header to be Bearer test-token, got %s", r.Header.Get("Authorization"))
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		if r.Header.Get("x-vercel-blob-store-id") != "test-store" {
+			t.Errorf("Expected x-vercel-blob-store-id header to be test-store, got %s", r.Header.Get("x-vercel-blob-store-id"))
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		if r.Header.Get("x-api-version") != "12" {
+			t.Errorf("Expected x-api-version header to be 12, got %s", r.Header.Get("x-api-version"))
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		// Return success
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
 	config := HTTPClientConfig{
 		StoreID:       "test-store",
 		AccessToken:   "test-token",
 		APIVersion:    "12",
-		BaseURL:       "https://vercel.com/api/blob",
+		BaseURL:       server.URL,
 		StorageBaseURL: "https://test-store.public.blob.vercel-storage.com",
 	}
 
 	client := NewHTTPClient(config)
 	ctx := context.Background()
 
-	// TODO: Implement test with mock HTTP server
-	err := client.deleteBlob(ctx, "test.txt")
+	err := client.deleteBlob(ctx, "test-file.txt")
 	if err != nil {
-		t.Logf("deleteBlob returned error (expected for skeleton): %v", err)
+		t.Errorf("deleteBlob failed: %v", err)
+	}
+}
+
+func TestHTTPClient_deleteBlob_NotFound(t *testing.T) {
+	t.Parallel()
+
+	// Create test server that returns 404
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Verify request method
+		if r.Method != http.MethodDelete {
+			t.Errorf("Expected DELETE method, got %s", r.Method)
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	config := HTTPClientConfig{
+		StoreID:       "test-store",
+		AccessToken:   "test-token",
+		APIVersion:    "12",
+		BaseURL:       server.URL,
+		StorageBaseURL: "https://test-store.public.blob.vercel-storage.com",
+	}
+
+	client := NewHTTPClient(config)
+	ctx := context.Background()
+
+	err := client.deleteBlob(ctx, "nonexistent-file.txt")
+	if err == nil {
+		t.Error("Expected deleteBlob to fail with 404")
+	}
+	if !strings.Contains(err.Error(), "404") {
+		t.Errorf("Expected error to contain 404, got: %s", err.Error())
+	}
+}
+
+func TestHTTPClient_deleteBlob_ServerError(t *testing.T) {
+	t.Parallel()
+
+	// Create test server that returns server error
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Internal Server Error"))
+	}))
+	defer server.Close()
+
+	config := HTTPClientConfig{
+		StoreID:       "test-store",
+		AccessToken:   "test-token",
+		APIVersion:    "12",
+		BaseURL:       server.URL,
+		StorageBaseURL: "https://test-store.public.blob.vercel-storage.com",
+	}
+
+	client := NewHTTPClient(config)
+	ctx := context.Background()
+
+	err := client.deleteBlob(ctx, "test-file.txt")
+	if err == nil {
+		t.Error("Expected deleteBlob to fail with server error")
+	}
+	if !strings.Contains(err.Error(), "500") {
+		t.Errorf("Expected error to contain 500, got: %s", err.Error())
 	}
 }
 
