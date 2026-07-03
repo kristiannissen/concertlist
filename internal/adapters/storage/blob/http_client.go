@@ -112,15 +112,17 @@ func (c *HTTPClient) Load(ctx context.Context) ([]domain.Concert, error) {
 	}
 	defer resp.Body.Close() //nolint:errcheck
 
+	// Check if file doesn't exist yet (empty store). This must be checked
+	// before the generic error check below, since 404 also satisfies
+	// resp.StatusCode >= http.StatusBadRequest.
+	if resp.StatusCode == http.StatusNotFound {
+		return []domain.Concert{}, nil
+	}
+
 	// Check response status
 	if resp.StatusCode >= http.StatusBadRequest {
 		body, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("request failed with status %d: %s", resp.StatusCode, string(body))
-	}
-	
-	// Check if file exists (404)
-	if resp.StatusCode == http.StatusNotFound {
-		return []domain.Concert{}, nil
 	}
 
 	// Read response body
