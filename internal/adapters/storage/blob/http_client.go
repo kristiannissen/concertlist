@@ -291,7 +291,42 @@ func (c *HTTPClient) deleteBlob(ctx context.Context, pathname string) error {
 
 // deleteBlobs deletes multiple blobs from the store.
 func (c *HTTPClient) deleteBlobs(ctx context.Context, urls []string) error {
-	// TODO: Implement using POST /delete
+	// Create request URL for delete endpoint
+	url := fmt.Sprintf("%s/delete", c.baseURL)
+	
+	// Create request body with URLs
+	requestBody := DeleteBlobsRequest{URLs: urls}
+	body, err := json.Marshal(requestBody)
+	if err != nil {
+		return fmt.Errorf("failed to marshal delete blobs request: %w", err)
+	}
+	
+	// Create HTTP request with context and JSON body
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Set required headers
+	req.Header.Set("Authorization", "Bearer "+c.accessToken)
+	req.Header.Set("x-vercel-blob-store-id", c.storeID)
+	req.Header.Set("x-api-version", c.apiVersion)
+	req.Header.Set("Content-Type", "application/json")
+	
+	// Create HTTP client and execute request
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to execute request: %w", err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+
+	// Check response status
+	if resp.StatusCode >= http.StatusBadRequest {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("request failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
 	return nil
 }
 
