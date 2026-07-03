@@ -7,7 +7,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"os"
 	"time"
 
 	"github.com/kristiannissen/concertlist/internal/adapters/etl/extractors/richter_gladsaxe"
@@ -52,23 +51,16 @@ func main() {
 			fmt.Println("No concerts found.")
 			return
 		}
-		fmt.Printf("Found %d concerts:
-
-", len(concerts))
+		fmt.Printf("Found %d concerts:", len(concerts))
 		for i, concert := range concerts {
-			fmt.Printf("%d. %s
-", i+1, concert.Title)
-			fmt.Printf("   Date: %s
-", concert.Date)
-			fmt.Printf("   Venue: %s
-", concert.Venue)
+			fmt.Printf("%d. %s", i+1, concert.Title)
+			fmt.Printf("   Date: %s", concert.Date)
+			fmt.Printf("   Venue: %s", concert.Venue)
 			if concert.URL != "" {
-				fmt.Printf("   URL: %s
-", concert.URL)
+				fmt.Printf("   URL: %s", concert.URL)
 			}
 			if concert.Description != "" {
-				fmt.Printf("   Description: %s
-", concert.Description)
+				fmt.Printf("   Description: %s", concert.Description)
 			}
 			fmt.Println()
 		}

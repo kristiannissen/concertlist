@@ -12,7 +12,7 @@ import (
 
 func main() {
 	// Initialize queue.
-	q, err := queue.NewVercelQueue()
+	q, err := queue.NewVercelQueueFromEnv()
 	if err != nil {
 		log.Fatalf("Failed to initialize queue: %v", err)
 	}
