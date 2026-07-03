@@ -142,7 +142,37 @@ func (c *HTTPClient) Load(ctx context.Context) ([]domain.Concert, error) {
 
 // uploadBlob uploads data to Vercel Blob.
 func (c *HTTPClient) uploadBlob(ctx context.Context, pathname string, data io.Reader, contentType string, access string) error {
-	// TODO: Implement upload using PUT /?pathname={pathname}
+	// Create request URL with pathname query parameter
+	url := fmt.Sprintf("%s/?pathname=%s", c.baseURL, pathname)
+	
+	// Create HTTP request with context and data body
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, url, data)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Set required headers
+	req.Header.Set("Authorization", "Bearer "+c.accessToken)
+	req.Header.Set("x-vercel-blob-store-id", c.storeID)
+	req.Header.Set("x-api-version", c.apiVersion)
+	req.Header.Set("x-vercel-blob-access", access)
+	req.Header.Set("x-content-type", contentType)
+	req.Header.Set("x-allow-overwrite", "1")
+	
+	// Create HTTP client and execute request
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to execute request: %w", err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+
+	// Check response status
+	if resp.StatusCode >= http.StatusBadRequest {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("request failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
 	return nil
 }
 
