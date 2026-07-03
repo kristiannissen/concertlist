@@ -2,8 +2,12 @@
 package blob
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
 	"io"
+	"net/http"
 
 	"github.com/kristiannissen/concertlist/internal/domain"
 )
@@ -39,7 +43,48 @@ func NewHTTPClient(config HTTPClientConfig) *HTTPClient {
 
 // Save stores concerts in Vercel Blob storage.
 func (c *HTTPClient) Save(ctx context.Context, concerts []domain.Concert) error {
-	// TODO: Implement using Vercel Blob HTTP API PUT endpoint
+	const defaultPathname = "concerts.json"
+	
+	// Marshal concerts to JSON
+	data, err := json.MarshalIndent(concerts, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal concerts: %w", err)
+	}
+
+	// Create request body
+	body := bytes.NewReader(data)
+
+	// Create request URL with pathname query parameter
+	url := fmt.Sprintf("%s/?pathname=%s", c.baseURL, defaultPathname)
+
+	// Create HTTP request
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, url, body)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Set required headers
+	req.Header.Set("Authorization", "Bearer "+c.accessToken)
+	req.Header.Set("x-vercel-blob-store-id", c.storeID)
+	req.Header.Set("x-api-version", c.apiVersion)
+	req.Header.Set("x-vercel-blob-access", string(AccessPublic))
+	req.Header.Set("x-content-type", "application/json")
+	req.Header.Set("x-allow-overwrite", "1")
+
+	// Create HTTP client and execute request
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to execute request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Check response status
+	if resp.StatusCode >= http.StatusBadRequest {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("request failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
 	return nil
 }
 
