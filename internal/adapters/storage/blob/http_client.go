@@ -258,7 +258,34 @@ func (c *HTTPClient) listBlobs(ctx context.Context, prefix string) ([]domain.Con
 
 // deleteBlob deletes a blob from the store.
 func (c *HTTPClient) deleteBlob(ctx context.Context, pathname string) error {
-	// TODO: Implement using DELETE /?pathname={pathname}
+	// Create request URL with pathname query parameter
+	url := fmt.Sprintf("%s/?pathname=%s", c.baseURL, pathname)
+	
+	// Create HTTP request with context
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Set required headers
+	req.Header.Set("Authorization", "Bearer "+c.accessToken)
+	req.Header.Set("x-vercel-blob-store-id", c.storeID)
+	req.Header.Set("x-api-version", c.apiVersion)
+	
+	// Create HTTP client and execute request
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to execute request: %w", err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+
+	// Check response status
+	if resp.StatusCode >= http.StatusBadRequest {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("request failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
 	return nil
 }
 
