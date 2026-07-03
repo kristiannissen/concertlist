@@ -28,11 +28,15 @@ func (e *Extractor) Extract(ctx context.Context) ([]domain.Concert, error) {
 		colly.UserAgent("Mozilla/5.0 (compatible; ConcertList/1.0)"),
 	)
 
-	// Handle context cancellation.
-	go func() {
-		<-ctx.Done()
-		c.Stop()
-	}()
+	// Handle context cancellation. colly.Collector has no Stop method, so
+	// abort any request that fires after the context has been cancelled.
+	c.OnRequest(func(r *colly.Request) {
+		select {
+		case <-ctx.Done():
+			r.Abort()
+		default:
+		}
+	})
 
 	// On every .card .text-overlay element, extract date and title.
 	c.OnHTML(".card .text-overlay", func(h *colly.HTMLElement) {
