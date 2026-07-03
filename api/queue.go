@@ -8,7 +8,6 @@ import (
 	"net/http"
 
 	"github.com/kristiannissen/concertlist/internal/adapters/etl/extractors/richter_gladsaxe"
-	"github.com/kristiannissen/concertlist/internal/adapters/storage/blob"
 	"github.com/kristiannissen/concertlist/internal/domain"
 )
 
@@ -35,13 +34,6 @@ func QueueHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Initialize dependencies.
-	blobStore, err := blob.NewBlobStore()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
 	// Initialize extractors (map venue name to extractor).
 	extractors := map[string]domain.ExtractorPort{
 		"richter_gladsaxe": richter_gladsaxe.NewExtractor(),
@@ -62,11 +54,8 @@ func QueueHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Save to storage.
-	if err := blobStore.Save(r.Context(), concerts); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	// TODO: Save to storage once blob storage (internal/adapters/storage/blob)
+	// is fully implemented. Wiring it in now would call unfinished stubs.
 
 	log.Printf("Processed %d concerts for %s", len(concerts), job.Venue)
 	w.WriteHeader(http.StatusOK) // Acknowledge successful processing.
