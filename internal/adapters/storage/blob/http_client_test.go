@@ -505,24 +505,124 @@ func TestHTTPClient_uploadBlob_ServerError(t *testing.T) {
 func TestHTTPClient_downloadBlob(t *testing.T) {
 	t.Parallel()
 
+	// Create test server for downloadBlob
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Verify request method
+		if r.Method != http.MethodGet {
+			t.Errorf("Expected GET method, got %s", r.Method)
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		// Verify Authorization header
+		if r.Header.Get("Authorization") != "Bearer test-token" {
+			t.Errorf("Expected Authorization header to be Bearer test-token, got %s", r.Header.Get("Authorization"))
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		// Write test content
+		testContent := "downloaded file content"
+		w.Header().Set("Content-Type", "text/plain")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(testContent))
+	}))
+	defer server.Close()
+
 	config := HTTPClientConfig{
 		StoreID:       "test-store",
 		AccessToken:   "test-token",
 		APIVersion:    "12",
 		BaseURL:       "https://vercel.com/api/blob",
-		StorageBaseURL: "https://test-store.public.blob.vercel-storage.com",
+		StorageBaseURL: server.URL,
 	}
 
 	client := NewHTTPClient(config)
 	ctx := context.Background()
 
-	// TODO: Implement test with mock HTTP server
-	reader, err := client.downloadBlob(ctx, "test.txt")
+	reader, err := client.downloadBlob(ctx, "test-file.txt")
 	if err != nil {
-		t.Logf("downloadBlob returned error (expected for skeleton): %v", err)
+		t.Errorf("downloadBlob failed: %v", err)
+	}
+	if reader == nil {
+		t.Error("Expected non-nil reader")
+	}
+	
+	// Read the content from the returned reader
+	defer reader.Close()
+	content, err := io.ReadAll(reader)
+	if err != nil {
+		t.Errorf("Failed to read from reader: %v", err)
+	}
+
+	expectedContent := "downloaded file content"
+	if string(content) != expectedContent {
+		t.Errorf("Expected content %s, got %s", expectedContent, string(content))
+	}
+}
+
+func TestHTTPClient_downloadBlob_NotFound(t *testing.T) {
+	t.Parallel()
+
+	// Create test server that returns 404
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	config := HTTPClientConfig{
+		StoreID:       "test-store",
+		AccessToken:   "test-token",
+		APIVersion:    "12",
+		BaseURL:       "https://vercel.com/api/blob",
+		StorageBaseURL: server.URL,
+	}
+
+	client := NewHTTPClient(config)
+	ctx := context.Background()
+
+	reader, err := client.downloadBlob(ctx, "nonexistent-file.txt")
+	if err == nil {
+		t.Error("Expected downloadBlob to fail with 404")
 	}
 	if reader != nil {
 		defer reader.Close()
+	}
+	if !strings.Contains(err.Error(), "404") {
+		t.Errorf("Expected error to contain 404, got: %s", err.Error())
+	}
+}
+
+func TestHTTPClient_downloadBlob_ServerError(t *testing.T) {
+	t.Parallel()
+
+	// Create test server that returns server error
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Internal Server Error"))
+	}))
+	defer server.Close()
+
+	config := HTTPClientConfig{
+		StoreID:       "test-store",
+		AccessToken:   "test-token",
+		APIVersion:    "12",
+		BaseURL:       "https://vercel.com/api/blob",
+		StorageBaseURL: server.URL,
+	}
+
+	client := NewHTTPClient(config)
+	ctx := context.Background()
+
+	reader, err := client.downloadBlob(ctx, "test-file.txt")
+	if err == nil {
+		t.Error("Expected downloadBlob to fail with server error")
+	}
+	if reader != nil {
+		defer reader.Close()
+	}
+	if !strings.Contains(err.Error(), "500") {
+		t.Errorf("Expected error to contain 500, got: %s", err.Error())
 	}
 }
 
