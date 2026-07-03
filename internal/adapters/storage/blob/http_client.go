@@ -332,8 +332,56 @@ func (c *HTTPClient) deleteBlobs(ctx context.Context, urls []string) error {
 
 // getBlobMetadata retrieves metadata for a blob.
 func (c *HTTPClient) getBlobMetadata(ctx context.Context, url string) (map[string]string, error) {
-	// TODO: Implement using GET /?url={url}
-	return nil, nil
+	// Create request URL with url query parameter
+	requestURL := fmt.Sprintf("%s/?url=%s", c.baseURL, url)
+	
+	// Create HTTP request with context
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Set required headers
+	req.Header.Set("Authorization", "Bearer "+c.accessToken)
+	req.Header.Set("x-vercel-blob-store-id", c.storeID)
+	req.Header.Set("x-api-version", c.apiVersion)
+	
+	// Create HTTP client and execute request
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute request: %w", err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+
+	// Check response status
+	if resp.StatusCode >= http.StatusBadRequest {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("request failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	// Read response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	// Parse the response into BlobMetadata
+	var metadata BlobMetadata
+	if err := json.Unmarshal(body, &metadata); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal blob metadata: %w", err)
+	}
+
+	// Convert BlobMetadata to map[string]string
+	result := make(map[string]string)
+	result["pathname"] = metadata.Pathname
+	result["contentType"] = metadata.ContentType
+	result["contentLength"] = fmt.Sprintf("%d", metadata.ContentLength)
+	result["uploadedAt"] = metadata.UploadedAt
+	result["access"] = metadata.Access
+	result["url"] = metadata.URL
+
+	return result, nil
 }
 
 // copyBlob copies a blob to a new pathname.

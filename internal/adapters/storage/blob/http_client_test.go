@@ -1003,25 +1003,153 @@ func TestHTTPClient_deleteBlobs_ServerError(t *testing.T) {
 func TestHTTPClient_getBlobMetadata(t *testing.T) {
 	t.Parallel()
 
+	// Create test server for getBlobMetadata
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Verify request method
+		if r.Method != http.MethodGet {
+			t.Errorf("Expected GET method, got %s", r.Method)
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		// Verify url query parameter
+		if r.URL.Query().Get("url") != "https://test-store.public.blob.vercel-storage.com/test.txt" {
+			t.Errorf("Expected url query param, got %s", r.URL.Query().Get("url"))
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		// Verify headers
+		if r.Header.Get("Authorization") != "Bearer test-token" {
+			t.Errorf("Expected Authorization header to be Bearer test-token, got %s", r.Header.Get("Authorization"))
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		if r.Header.Get("x-vercel-blob-store-id") != "test-store" {
+			t.Errorf("Expected x-vercel-blob-store-id header to be test-store, got %s", r.Header.Get("x-vercel-blob-store-id"))
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		if r.Header.Get("x-api-version") != "12" {
+			t.Errorf("Expected x-api-version header to be 12, got %s", r.Header.Get("x-api-version"))
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		// Return sample blob metadata
+		sampleMetadata := BlobMetadata{
+			Pathname:      "test.txt",
+			ContentType:   "text/plain",
+			ContentLength: 1024,
+			UploadedAt:    "2026-07-01T00:00:00Z",
+			Access:        "public",
+			URL:           "https://test-store.public.blob.vercel-storage.com/test.txt",
+		}
+		
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(sampleMetadata)
+	}))
+	defer server.Close()
+
 	config := HTTPClientConfig{
 		StoreID:       "test-store",
 		AccessToken:   "test-token",
 		APIVersion:    "12",
-		BaseURL:       "https://vercel.com/api/blob",
+		BaseURL:       server.URL,
 		StorageBaseURL: "https://test-store.public.blob.vercel-storage.com",
 	}
 
 	client := NewHTTPClient(config)
 	ctx := context.Background()
-	url := "https://test-store.public.blob.vercel-storage.com/test.txt"
+	blobURL := "https://test-store.public.blob.vercel-storage.com/test.txt"
 
-	// TODO: Implement test with mock HTTP server
-	metadata, err := client.getBlobMetadata(ctx, url)
+	metadata, err := client.getBlobMetadata(ctx, blobURL)
 	if err != nil {
-		t.Logf("getBlobMetadata returned error (expected for skeleton): %v", err)
+		t.Errorf("getBlobMetadata failed: %v", err)
 	}
-	if metadata != nil {
-		t.Logf("Got metadata: %v", metadata)
+
+	// Verify returned metadata
+	if metadata == nil {
+		t.Error("Expected non-nil metadata")
+		return
+	}
+
+	if metadata["pathname"] != "test.txt" {
+		t.Errorf("Expected pathname to be test.txt, got %s", metadata["pathname"])
+	}
+	if metadata["contentType"] != "text/plain" {
+		t.Errorf("Expected contentType to be text/plain, got %s", metadata["contentType"])
+	}
+	if metadata["contentLength"] != "1024" {
+		t.Errorf("Expected contentLength to be 1024, got %s", metadata["contentLength"])
+	}
+	if metadata["access"] != "public" {
+		t.Errorf("Expected access to be public, got %s", metadata["access"])
+	}
+	if metadata["url"] != "https://test-store.public.blob.vercel-storage.com/test.txt" {
+		t.Errorf("Expected url to be %s, got %s", "https://test-store.public.blob.vercel-storage.com/test.txt", metadata["url"])
+	}
+}
+
+func TestHTTPClient_getBlobMetadata_NotFound(t *testing.T) {
+	t.Parallel()
+
+	// Create test server that returns 404
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	config := HTTPClientConfig{
+		StoreID:       "test-store",
+		AccessToken:   "test-token",
+		APIVersion:    "12",
+		BaseURL:       server.URL,
+		StorageBaseURL: "https://test-store.public.blob.vercel-storage.com",
+	}
+
+	client := NewHTTPClient(config)
+	ctx := context.Background()
+	blobURL := "https://test-store.public.blob.vercel-storage.com/nonexistent.txt"
+
+	_, err := client.getBlobMetadata(ctx, blobURL)
+	if err == nil {
+		t.Error("Expected getBlobMetadata to fail with 404")
+	}
+	if !strings.Contains(err.Error(), "404") {
+		t.Errorf("Expected error to contain 404, got: %s", err.Error())
+	}
+}
+
+func TestHTTPClient_getBlobMetadata_ServerError(t *testing.T) {
+	t.Parallel()
+
+	// Create test server that returns server error
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Internal Server Error"))
+	}))
+	defer server.Close()
+
+	config := HTTPClientConfig{
+		StoreID:       "test-store",
+		AccessToken:   "test-token",
+		APIVersion:    "12",
+		BaseURL:       server.URL,
+		StorageBaseURL: "https://test-store.public.blob.vercel-storage.com",
+	}
+
+	client := NewHTTPClient(config)
+	ctx := context.Background()
+	blobURL := "https://test-store.public.blob.vercel-storage.com/test.txt"
+
+	_, err := client.getBlobMetadata(ctx, blobURL)
+	if err == nil {
+		t.Error("Expected getBlobMetadata to fail with server error")
+	}
+	if !strings.Contains(err.Error(), "500") {
+		t.Errorf("Expected error to contain 500, got: %s", err.Error())
 	}
 }
 
