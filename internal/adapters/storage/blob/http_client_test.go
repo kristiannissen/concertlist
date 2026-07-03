@@ -2,6 +2,7 @@
 package blob
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"io"
@@ -350,21 +351,154 @@ func TestHTTPClient_Load_ServerError(t *testing.T) {
 func TestHTTPClient_uploadBlob(t *testing.T) {
 	t.Parallel()
 
+	// Create test server for uploadBlob
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Verify request method
+		if r.Method != http.MethodPut {
+			t.Errorf("Expected PUT method, got %s", r.Method)
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		// Verify pathname query parameter
+		if r.URL.Query().Get("pathname") != "test-file.txt" {
+			t.Errorf("Expected pathname=test-file.txt, got %s", r.URL.Query().Get("pathname"))
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		// Verify headers
+		if r.Header.Get("Authorization") != "Bearer test-token" {
+			t.Errorf("Expected Authorization header to be Bearer test-token, got %s", r.Header.Get("Authorization"))
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		if r.Header.Get("x-vercel-blob-store-id") != "test-store" {
+			t.Errorf("Expected x-vercel-blob-store-id header to be test-store, got %s", r.Header.Get("x-vercel-blob-store-id"))
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		if r.Header.Get("x-api-version") != "12" {
+			t.Errorf("Expected x-api-version header to be 12, got %s", r.Header.Get("x-api-version"))
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		if r.Header.Get("x-vercel-blob-access") != "public" {
+			t.Errorf("Expected x-vercel-blob-access header to be public, got %s", r.Header.Get("x-vercel-blob-access"))
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		if r.Header.Get("x-content-type") != "text/plain" {
+			t.Errorf("Expected x-content-type header to be text/plain, got %s", r.Header.Get("x-content-type"))
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		if r.Header.Get("x-allow-overwrite") != "1" {
+			t.Errorf("Expected x-allow-overwrite header to be 1, got %s", r.Header.Get("x-allow-overwrite"))
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		// Verify request body
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Errorf("Failed to read request body: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		expectedContent := "test content"
+		if string(body) != expectedContent {
+			t.Errorf("Expected body to be %s, got %s", expectedContent, string(body))
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		// Return success
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
 	config := HTTPClientConfig{
 		StoreID:       "test-store",
 		AccessToken:   "test-token",
 		APIVersion:    "12",
-		BaseURL:       "https://vercel.com/api/blob",
+		BaseURL:       server.URL,
 		StorageBaseURL: "https://test-store.public.blob.vercel-storage.com",
 	}
 
 	client := NewHTTPClient(config)
 	ctx := context.Background()
+	data := bytes.NewReader([]byte("test content"))
 
-	// TODO: Implement test with mock HTTP server
-	err := client.uploadBlob(ctx, "test.txt", nil, "text/plain", "public")
+	err := client.uploadBlob(ctx, "test-file.txt", data, "text/plain", string(AccessPublic))
 	if err != nil {
-		t.Logf("uploadBlob returned error (expected for skeleton): %v", err)
+		t.Errorf("uploadBlob failed: %v", err)
+	}
+}
+
+func TestHTTPClient_uploadBlob_PrivateAccess(t *testing.T) {
+	t.Parallel()
+
+	// Create test server for uploadBlob with private access
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Verify access header for private
+		if r.Header.Get("x-vercel-blob-access") != "private" {
+			t.Errorf("Expected x-vercel-blob-access header to be private, got %s", r.Header.Get("x-vercel-blob-access"))
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	config := HTTPClientConfig{
+		StoreID:       "test-store",
+		AccessToken:   "test-token",
+		APIVersion:    "12",
+		BaseURL:       server.URL,
+		StorageBaseURL: "https://test-store.public.blob.vercel-storage.com",
+	}
+
+	client := NewHTTPClient(config)
+	ctx := context.Background()
+	data := bytes.NewReader([]byte("private content"))
+
+	err := client.uploadBlob(ctx, "private-file.txt", data, "application/octet-stream", string(AccessPrivate))
+	if err != nil {
+		t.Errorf("uploadBlob failed for private access: %v", err)
+	}
+}
+
+func TestHTTPClient_uploadBlob_ServerError(t *testing.T) {
+	t.Parallel()
+
+	// Create test server that returns server error
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Internal Server Error"))
+	}))
+	defer server.Close()
+
+	config := HTTPClientConfig{
+		StoreID:       "test-store",
+		AccessToken:   "test-token",
+		APIVersion:    "12",
+		BaseURL:       server.URL,
+		StorageBaseURL: "https://test-store.public.blob.vercel-storage.com",
+	}
+
+	client := NewHTTPClient(config)
+	ctx := context.Background()
+	data := bytes.NewReader([]byte("test content"))
+
+	err := client.uploadBlob(ctx, "test-file.txt", data, "text/plain", string(AccessPublic))
+	if err == nil {
+		t.Error("Expected uploadBlob to fail with server error")
+	}
+	if !strings.Contains(err.Error(), "500") {
+		t.Errorf("Expected error to contain 500, got: %s", err.Error())
 	}
 }
 
