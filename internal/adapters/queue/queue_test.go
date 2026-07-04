@@ -1,3 +1,5 @@
+url: https://raw.githubusercontent.com/kristiannissen/concertlist/feat/pass-concert-to-queue/internal/adapters/queue/queue_test.go
+
 // Package queue provides Vercel Queues adapter using the HTTP API.
 package queue
 
@@ -88,7 +90,8 @@ func TestSendMessage(t *testing.T) {
 			t.Errorf("Expected POST method, got %s", r.Method)
 		}
 		if r.Header.Get("Authorization") != "Bearer test-token" {
-			t.Errorf("Expected Authorization header")
+			t.Errorf("Expected Authorizati
+on header")
 		}
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -184,7 +187,8 @@ func TestReceiveMessages_NoContent(t *testing.T) {
 		t.Fatalf("Failed to receive messages: %v", err)
 	}
 
-	if len(resp.Messages) != 0 {
+	if len(resp.Messages
+) != 0 {
 		t.Errorf("Expected 0 messages, got %d", len(resp.Messages))
 	}
 }
@@ -250,5 +254,93 @@ func TestExtendLease(t *testing.T) {
 	err := q.ExtendLease(ctx, "test-receipt", 120)
 	if err != nil {
 		t.Fatalf("Failed to extend lease: %v", err)
+	}
+}
+
+func TestEnqueueConcert(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Errorf("Expected POST method, got %s", r.Method)
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		if r.Header.Get("Authorization") != "Bearer test-token" {
+			t.Errorf("Expected Authorization header")
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		if r.Header.Get("Content-Type") != "application/json" {
+			t.Errorf("Expected Content-Type to be application/json, got %s", r.Header.Get("Content-Type"))
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	config := QueueConfig{
+		Region:    "test-region",
+		Topic:     "test-topic",
+		Consumer:  "test-consumer",
+		OIDCToken: "test-token",
+	}
+	q := &VercelQueue{
+		config: config,
+		client: server.Client(),
+	}
+	q.buildURL = func(path string) string {
+		return server.URL + path
+	}
+
+	ctx := context.Background()
+	concert := domain.Concert{
+		ID:    "test-id",
+		Title: "Test Concert",
+		Venue: "Test Venue",
+		Date:  "2026-07-04",
+	}
+
+	err := q.EnqueueConcert(ctx, concert)
+	if err != nil {
+		t.Fatalf("EnqueueConcert failed: %v", err)
+	}
+}
+
+func TestEnqueueConcert_Error(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Internal Server Error"))
+	}))
+	defer server.Close()
+
+	config := QueueConfig{
+		Region:    "test-region",
+		Topic:     "test-topic",
+		Consumer:  "test-consumer",
+		OIDCToken: "test-token",
+	}
+	q := &VercelQueue{
+		config: config,
+		client: server.Client(),
+	}
+	q.buildURL = func(path string) string {
+		return server.URL + path
+	}
+
+	ctx := context.Background()
+	concert := domain.Concert{
+		ID:    "test-id",
+		Title: "Test Concert",
+		Venue: "Test Venue",
+		Date:  "2026-07-04",
+	}
+
+	err := q.EnqueueConcert(ctx, concert)
+	if err == nil {
+		t.Error("Expected EnqueueConcert to return error")
 	}
 }
