@@ -1,3 +1,5 @@
+url: https://raw.githubusercontent.com/kristiannissen/concertlist/main/internal/adapters/etl/extractors/richter_gladsaxe/extractor.go
+
 // Package richter_gladsaxe provides the extractor for Richter Gladsaxe venue.
 package richter_gladsaxe
 
@@ -11,11 +13,13 @@ import (
 )
 
 // Extractor implements domain.ExtractorPort for Richter Gladsaxe.
-type Extractor struct{}
+type Extractor struct {
+	queue domain.QueuePort
+}
 
 // NewExtractor creates a new Extractor for Richter Gladsaxe.
-func NewExtractor() *Extractor {
-	return &Extractor{}
+func NewExtractor(queue domain.QueuePort) *Extractor {
+	return &Extractor{queue: queue}
 }
 
 // Extract fetches concert data from Richter Gladsaxe's index page.
@@ -62,6 +66,11 @@ func (e *Extractor) Extract(ctx context.Context) ([]domain.Concert, error) {
 			URL:   h.Request.AbsoluteURL(h.Attr("href")),
 		}
 
+		// Pass concert to queue for processing instead of collecting in slice
+		if err := e.queue.EnqueueConcert(r.Context(), concert); err != nil {
+			log.Printf("Failed to enqueue concert: %v", err)
+		}
+
 		concerts = append(concerts, concert)
 	})
 
@@ -72,7 +81,8 @@ func (e *Extractor) Extract(ctx context.Context) ([]domain.Concert, error) {
 
 	// Start scraping the index page.
 	if err := c.Visit("https://richter-gladsaxe.dk/"); err != nil {
-		return nil, err
+		return nil, er
+r
 	}
 
 	// Wait for all requests to finish.
