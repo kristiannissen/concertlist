@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/kristiannissen/concertlist/internal/domain"
 )
@@ -115,6 +116,18 @@ func (q *VercelQueue) Enqueue(ctx context.Context, job domain.ExtractionJob) err
 	return q.SendMessage(ctx, data, SendMessageOptions{ContentType: "application/json"})
 }
 
+// EnqueueAsync sends a job to the Vercel Queue asynchronously.
+// It returns a channel that will receive the error (if any) when the operation completes.
+// The channel is buffered with size 1 to prevent goroutine leaks.
+func (q *VercelQueue) EnqueueAsync(ctx context.Context, job domain.ExtractionJob) <-chan error {
+	ch := make(chan error, 1)
+	go func() {
+		defer close(ch)
+		ch <- q.Enqueue(ctx, job)
+	}()
+	return ch
+}
+
 // ReceiveMessages retrieves messages from the configured topic/consumer.
 func (q *VercelQueue) ReceiveMessages(ctx context.Context, opts ReceiveMessagesOptions) (*ReceiveMessagesResponse, error) {
 	url := q.buildURL(fmt.Sprintf("/topic/%s/consumer/%s", q.config.Topic, q.config.Consumer))
@@ -200,6 +213,75 @@ func (q *VercelQueue) ExtendLease(ctx context.Context, receiptHandle string, vis
 	}
 
 	return nil
+}
+
+// ProcessAsync processes messages from the queue asynchronously using a worker pool.
+// It returns a channel that will receive errors from the workers.
+// The method will continue processing until the context is cancelled.
+// Each worker runs in its own goroutine, and messages are acknowledged after being sent to a worker.
+func (q *VercelQueue) ProcessAsync(ctx context.Context, handler domain.QueueHandler, concurrency int) <-chan error {
+	errCh := make(chan error, concurrency)
+
+	// Create a channel for jobs
+	jobs := make(chan domain.ExtractionJob, concurrency)
+
+	// Start worker pool
+	for i := 0; i < concurrency; i++ {
+		go func(workerID int) {
+			for job := range jobs {
+				if err := handler(ctx, job); err != nil {
+					errCh <- fmt.Errorf("worker %d: %w", workerID, err)
+				}
+			}
+		}(i)
+	}
+
+	// Start receiving messages in a goroutine
+	go func() {
+		defer close(jobs)
+		defer close(errCh)
+
+		opts := ReceiveMessagesOptions{
+			MaxMessages:            concurrency,
+			VisibilityTimeoutSeconds: 60,
+			MaxConcurrency:         concurrency,
+			Accept:                 "application/json",
+		}
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				resp, err := q.ReceiveMessages(ctx, opts)
+				if err != nil {
+					errCh <- fmt.Errorf("failed to receive messages: %w", err)
+					return
+				}
+
+				for _, msg := range resp.Messages {
+					var job domain.ExtractionJob
+					if err := json.Unmarshal(msg.Body, &job); err != nil {
+						errCh <- fmt.Errorf("failed to unmarshal job: %w", err)
+						continue
+					}
+					jobs <- job
+
+					// Acknowledge message after sending to worker
+					go func(receiptHandle string) {
+						if err := q.AcknowledgeMessage(ctx, receiptHandle); err != nil {
+							errCh <- fmt.Errorf("failed to acknowledge message: %w", err)
+						}
+					}(msg.ReceiptHandle)
+				}
+
+				// Small delay to prevent tight loop
+				time.Sleep(100 * time.Millisecond)
+			}
+		}
+	}()
+
+	return errCh
 }
 
 // Process is not needed for push-based consumers.
