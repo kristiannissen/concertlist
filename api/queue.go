@@ -1,3 +1,5 @@
+url: https://raw.githubusercontent.com/kristiannissen/concertlist/main/api/queue.go
+
 // Package handler provides the Vercel Queue entry point.
 package handler
 
@@ -6,8 +8,10 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/kristiannissen/concertlist/internal/adapters/etl/extractors/richter_gladsaxe"
+	"github.com/kristiannissen/concertlist/internal/adapters/queue"
 	"github.com/kristiannissen/concertlist/internal/domain"
 )
 
@@ -34,9 +38,17 @@ func QueueHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Initialize queue client for enqueuing concerts
+	q, err := queue.NewVercelQueueFromEnv()
+	if err != nil {
+		log.Printf("Warning: failed to initialize queue client: %v", err)
+		// Continue without queue - concerts will still be collected but not enqueued
+	}
+
 	// Initialize extractors (map venue name to extractor).
+	// Pass queue to extractors so they can enqueue concerts individually.
 	extractors := map[string]domain.ExtractorPort{
-		"richter_gladsaxe": richter_gladsaxe.NewExtractor(),
+		"richter_gladsaxe": richter_gladsaxe.NewExtractor(q),
 	}
 
 	// Get the extractor for this venue.
