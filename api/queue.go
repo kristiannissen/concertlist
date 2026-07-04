@@ -5,6 +5,7 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -31,24 +32,25 @@ func QueueHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close() //nolint:errcheck
 
-	// Parse the ExtractionJob from the message.
+	// Try to parse as ExtractionJob first, then as Concert
 	var job domain.ExtractionJob
 	if err := json.Unmarshal(body, &job); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		// Try parsing as Concert
+		var concert domain.Concert
+		if err2 := json.Unmarshal(body, &concert); err2 != nil {
+			http.Error(w, fmt.Sprintf("failed to parse message as ExtractionJob or Concert: %v", err), http.StatusBadRequest)
+			return
+		}
+		// Handle concert message - save to storage
+		log.Printf("Processing concert: %s", concert.Title)
+		// TODO: Save concert to storage
+		w.WriteHeader(http.StatusOK)
 		return
 	}
 
-	// Initialize queue client for enqueuing concerts
-	q, err := queue.NewVercelQueueFromEnv()
-	if err != nil {
-		log.Printf("Warning: failed to initialize queue client: %v", err)
-		// Continue without queue - concerts will still be collected but not enqueued
-	}
-
 	// Initialize extractors (map venue name to extractor).
-	// Pass queue to extractors so they can enqueue concerts individually.
 	extractors := map[string]domain.ExtractorPort{
-		"richter_gladsaxe": richter_gladsaxe.NewExtractor(q),
+		"richter_gladsaxe": richter_gladsaxe.NewExtractor(),
 	}
 
 	// Get the extractor for this venue.
