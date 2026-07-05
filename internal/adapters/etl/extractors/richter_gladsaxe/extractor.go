@@ -1,5 +1,3 @@
-url: https://raw.githubusercontent.com/kristiannissen/concertlist/main/internal/adapters/etl/extractors/richter_gladsaxe/extractor.go
-
 // Package richter_gladsaxe provides the extractor for Richter Gladsaxe venue.
 package richter_gladsaxe
 
@@ -81,8 +79,7 @@ func (e *Extractor) Extract(ctx context.Context) ([]domain.Concert, error) {
 
 	// Start scraping the index page.
 	if err := c.Visit("https://richter-gladsaxe.dk/"); err != nil {
-		return nil, er
-r
+		return nil, err
 	}
 
 	// Wait for all requests to finish.
