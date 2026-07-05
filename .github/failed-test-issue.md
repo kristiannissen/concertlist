@@ -1,9 +1,9 @@
 ---
-title: "Tests failing: ${{ github.ref_name }}"
+title: "Tests failing: {{ env.GITHUB_REF_NAME }}"
 labels: bug
 ---
 
-Workflow **${{ github.workflow }}** failed run **#${{ github.run_number }}**.
+Workflow **{{ env.GITHUB_WORKFLOW }}** failed run **#{{ env.GITHUB_RUN_NUMBER }}**.
 
-* **Commit:** ${{ github.sha }}
-* **Details:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+* **Commit:** {{ env.GITHUB_SHA }}
+* **Details:** https://github.com/{{ env.GITHUB_REPOSITORY }}/actions/runs/{{ env.GITHUB_RUN_ID }}
