@@ -13,6 +13,9 @@ jobs:
   test:
     name: Run Go Tests
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
 
     steps:
       - name: Checkout repository
@@ -29,6 +32,14 @@ jobs:
 
       - name: Run tests
         run: go test -v ./...
+      
+      - name: Tests failed
+        if: failure()
+        uses: JasonEtco/create-an-issue@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          filename: .github/failed-test-issue.md
 
   # ---------------------------------------------------------
   # JOB 2: DEPLOY TO VERCEL
