@@ -1,5 +1,3 @@
-url: https://raw.githubusercontent.com/kristiannissen/concertlist/main/internal/adapters/queue/queue.go
-
 // Package queue provides Vercel Queues adapter using the HTTP API.
 package queue
 
@@ -71,8 +69,7 @@ func NewVercelQueueFromEnv() (*VercelQueue, error) {
 }
 
 // authHeader sets the Authorization header on the request when an OIDC token is configured.
-func (q *VercelQueue) aut
-hHeader(req *http.Request) {
+func (q *VercelQueue) authHeader(req *http.Request) {
 	if q.config.OIDCToken != "" {
 		req.Header.Set("Authorization", "Bearer "+q.config.OIDCToken)
 	}
@@ -128,7 +125,6 @@ func (q *VercelQueue) EnqueueConcert(ctx context.Context, concert domain.Concert
 	return q.SendMessage(ctx, data, SendMessageOptions{ContentType: "application/json"})
 }
 
-
 // ReceiveMessages retrieves messages from the configured topic/consumer.
 func (q *VercelQueue) ReceiveMessages(ctx context.Context, opts ReceiveMessagesOptions) (*ReceiveMessagesResponse, error) {
 	url := q.buildURL(fmt.Sprintf("/topic/%s/consumer/%s", q.config.Topic, q.config.Consumer))
@@ -151,8 +147,7 @@ func (q *VercelQueue) ReceiveMessages(ctx context.Context, opts ReceiveMessagesO
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("failed to receive m
-essages: %s (status: %d)", string(respBody), resp.StatusCode)
+		return nil, fmt.Errorf("failed to receive messages: %s (status: %d)", string(respBody), resp.StatusCode)
 	}
 
 	var result ReceiveMessagesResponse
@@ -219,7 +214,6 @@ func (q *VercelQueue) ExtendLease(ctx context.Context, receiptHandle string, vis
 
 // Process is not needed for push-based consumers.
 // Vercel automatically delivers messages to /api/queue.
-
 func (q *VercelQueue) Process(ctx context.Context, handler domain.QueueHandler) error {
 	return fmt.Errorf("push-based consumers do not require manual processing")
 }

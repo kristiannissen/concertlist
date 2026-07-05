@@ -1,5 +1,3 @@
-url: https://raw.githubusercontent.com/kristiannissen/concertlist/feat/pass-concert-to-queue/internal/adapters/queue/queue_test.go
-
 // Package queue provides Vercel Queues adapter using the HTTP API.
 package queue
 
@@ -90,8 +88,7 @@ func TestSendMessage(t *testing.T) {
 			t.Errorf("Expected POST method, got %s", r.Method)
 		}
 		if r.Header.Get("Authorization") != "Bearer test-token" {
-			t.Errorf("Expected Authorizati
-on header")
+			t.Errorf("Expected Authorization header")
 		}
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -114,7 +111,7 @@ on header")
 	ctx := context.Background()
 	messageBody := []byte("test message")
 	opts := SendMessageOptions{
-		ContentType:   "application/json",
+		ContentType:     "application/json",
 		RetentionSeconds: 86400,
 	}
 
@@ -187,8 +184,7 @@ func TestReceiveMessages_NoContent(t *testing.T) {
 		t.Fatalf("Failed to receive messages: %v", err)
 	}
 
-	if len(resp.Messages
-) != 0 {
+	if len(resp.Messages) != 0 {
 		t.Errorf("Expected 0 messages, got %d", len(resp.Messages))
 	}
 }
