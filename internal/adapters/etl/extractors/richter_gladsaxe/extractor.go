@@ -65,7 +65,7 @@ func (e *Extractor) Extract(ctx context.Context) ([]domain.Concert, error) {
 		}
 
 		// Pass concert to queue for processing instead of collecting in slice
-		if err := e.queue.EnqueueConcert(h.Request.Context(), concert); err != nil {
+		if err := e.queue.EnqueueConcert(ctx, concert); err != nil {
 			log.Printf("Failed to enqueue concert: %v", err)
 		}
 
