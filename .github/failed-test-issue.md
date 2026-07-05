@@ -1,5 +1,5 @@
 ---
-title: Tests failing: ${{ github.ref_name }}
+title: "Tests failing: ${{ github.ref_name }}"
 labels: bug
 ---
 
