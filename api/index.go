@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/kristiannissen/concertlist/internal/router"
+	"github.com/kristiannissen/concertlist/pkg/router"
 )
 
 // Handler is the Vercel entry point that routes all /api/* requests.

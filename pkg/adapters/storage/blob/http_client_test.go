@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kristiannissen/concertlist/internal/domain"
+	"github.com/kristiannissen/concertlist/pkg/domain"
 )
 
 func TestNewHTTPClient(t *testing.T) {
