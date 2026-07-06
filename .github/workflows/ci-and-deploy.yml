@@ -79,7 +79,13 @@ jobs:
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
           # Push to main -> production deploy. PR -> preview deploy.
-          # Uses the action's API-based deployment (no vercel-args), which
-          # talks to Vercel directly instead of shelling out to a bundled
-          # CLI, avoiding CLI-version-mismatch errors like v25 hit.
-          target: ${{ github.event_name == 'push' && 'production' || 'preview' }}
+          #
+          # amondnet/vercel-action@v42 runs in stable CLI mode by default.
+          # The typed `target` input (used below previously) only has any
+          # effect when `experimental-api: true` is also set; without it,
+          # `target` is silently ignored and every deployment falls back to
+          # preview regardless of event type. This was undetected for a long
+          # time because the action still reports success either way. Use
+          # `vercel-args: --prod` instead, which is what CLI mode actually
+          # reads to promote a deployment to production.
+          vercel-args: ${{ github.event_name == 'push' && '--prod' || '' }}
