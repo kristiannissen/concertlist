@@ -1,0 +1,31 @@
+{
+    "version": "2.0.0",
+    "date": "2026-07-06",
+    "changes": [
+        {
+            "title": "Neon Design Overhaul",
+            "description": "Complete visual redesign with neon aesthetic - hot pink title, cyan accents, and glowing effects.",
+            "type": "feature"
+        },
+        {
+            "title": "Venue Filter Chips",
+            "description": "Added filter chips for VEGA, JAZZ, DR KON venues with smooth animations.",
+            "type": "feature"
+        },
+        {
+            "title": "3D Pixel Buttons",
+            "description": "New 3D-style pixel block buttons for ticket purchases with hover effects.",
+            "type": "feature"
+        },
+        {
+            "title": "Improved Loading States",
+            "description": "Enhanced skeleton loaders with neon shimmer effects.",
+            "type": "improvement"
+        },
+        {
+            "title": "PWA Update Notifications",
+            "description": "Automatic update notifications when new version is available.",
+            "type": "feature"
+        }
+    ]
+}
