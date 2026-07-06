@@ -1,46 +1,30 @@
-const CACHE_NAME = 'concertlist-v4';
-const ASSETS_TO_CACHE = ['/', '/index.html', '/styles.css', '/app.js', '/manifest.json', '/sw.js', '/changelog.json'];
+// Service worker caching is disabled while the site is under active
+// development and deploys are still stabilizing. A caching service worker
+// that outlives a broken deploy will keep serving that broken response
+// (including crash/error pages) to returning visitors indefinitely, which
+// is worse than having no cache at all during this phase.
+//
+// This version acts as a kill switch: it clears any cache left behind by
+// a previous version of this file, unregisters itself, and reloads any
+// open tabs so they fall through to a normal, uncached network request.
+// It intentionally has no 'fetch' handler, so once unregistered, requests
+// are no longer intercepted at all.
+//
+// Re-introduce real caching (see git history for the previous
+// cache-first implementation) once deploys are stable.
 
-self.addEventListener('install', (event) => {
-    event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS_TO_CACHE)));
-});
-
-self.addEventListener('fetch', (event) => {
-    event.respondWith(
-        caches.match(event.request).then((response) => {
-            const fetchPromise = fetch(event.request).then((networkResponse) => {
-                if (event.request.method === 'GET' && networkResponse.ok) {
-                    const responseClone = networkResponse.clone();
-                    caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
-                }
-                return networkResponse;
-            });
-            return response || fetchPromise;
-        })
-    );
+self.addEventListener('install', () => {
+    self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-    const cacheWhitelist = [CACHE_NAME];
     event.waitUntil(
-        caches.keys().then((cacheNames) => {
-            return Promise.all(cacheNames.map((cacheName) => {
-                if (cacheWhitelist.indexOf(cacheName) === -1) return caches.delete(cacheName);
-            }));
-        })
+        caches.keys()
+            .then((cacheNames) => Promise.all(cacheNames.map((name) => caches.delete(name))))
+            .then(() => self.registration.unregister())
+            .then(() => self.clients.matchAll({ type: 'window' }))
+            .then((clients) => {
+                clients.forEach((client) => client.navigate(client.url));
+            })
     );
-});
-
-self.addEventListener('message', (event) => {
-    if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
-});
-
-self.addEventListener('install', (event) => event.waitUntil(self.skipWaiting()));
-
-self.addEventListener('updatefound', (event) => {
-    if (event.oldVersion) {
-        self.clients.matchAll().then((clients) => {
-            clients.forEach((client) => client.postMessage({ type: 'NEW_VERSION_AVAILABLE' }));
-        });
-    }
 });
