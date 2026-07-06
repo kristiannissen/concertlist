@@ -3,11 +3,13 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
 
 	"github.com/kristiannissen/concertlist/pkg/adapters/etl/extractors/richter_gladsaxe"
+	"github.com/kristiannissen/concertlist/pkg/adapters/queue"
 	"github.com/kristiannissen/concertlist/pkg/domain"
 )
 
@@ -27,16 +29,32 @@ func QueueHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close() //nolint:errcheck
 
-	// Parse the ExtractionJob from the message.
+	// Try to parse as ExtractionJob first, then as Concert
 	var job domain.ExtractionJob
 	if err := json.Unmarshal(body, &job); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		// Try parsing as Concert
+		var concert domain.Concert
+		if err2 := json.Unmarshal(body, &concert); err2 != nil {
+			http.Error(w, fmt.Sprintf("failed to parse message as ExtractionJob or Concert: %v", err), http.StatusBadRequest)
+			return
+		}
+		// Handle concert message - save to storage
+		log.Printf("Processing concert: %s", concert.Title)
+		// TODO: Save concert to storage
+		w.WriteHeader(http.StatusOK)
 		return
+	}
+
+	// Initialize queue for extractor
+	queueClient, err := queue.NewVercelQueueFromEnv()
+	if err != nil {
+		log.Printf("Failed to create queue client: %v", err)
+		// Continue without queue - concerts will still be collected
 	}
 
 	// Initialize extractors (map venue name to extractor).
 	extractors := map[string]domain.ExtractorPort{
-		"richter_gladsaxe": richter_gladsaxe.NewExtractor(),
+		"richter_gladsaxe": richter_gladsaxe.NewExtractor(queueClient),
 	}
 
 	// Get the extractor for this venue.
@@ -54,7 +72,7 @@ func QueueHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: Save to storage once blob storage (internal/adapters/storage/blob)
+	// TODO: Save to storage once blob storage (pkg/adapters/storage/blob)
 	// is fully implemented. Wiring it in now would call unfinished stubs.
 
 	log.Printf("Processed %d concerts for %s", len(concerts), job.Venue)

@@ -13,6 +13,17 @@ import (
 	"github.com/kristiannissen/concertlist/pkg/domain"
 )
 
+// noopQueue is a no-op domain.QueuePort used for local CLI testing, where
+// there's no real Vercel Queue to enqueue into and no queue credentials are
+// expected to be configured.
+type noopQueue struct{}
+
+func (noopQueue) Enqueue(ctx context.Context, job domain.ExtractionJob) error { return nil }
+
+func (noopQueue) EnqueueConcert(ctx context.Context, concert domain.Concert) error { return nil }
+
+func (noopQueue) Process(ctx context.Context, handler domain.QueueHandler) error { return nil }
+
 func main() {
 	// Define CLI flags
 	venue := flag.String("venue", "richter_gladsaxe", "Venue extractor to test (currently only richter_gladsaxe is supported)")
@@ -29,7 +40,7 @@ func main() {
 	// Test the specified extractor
 	switch *venue {
 	case "richter_gladsaxe":
-		extractor := richter_gladsaxe.NewExtractor()
+		extractor := richter_gladsaxe.NewExtractor(noopQueue{})
 		concerts, err = extractor.Extract(ctx)
 		if err != nil {
 			log.Fatalf("Failed to extract from Richter Gladsaxe: %v", err)

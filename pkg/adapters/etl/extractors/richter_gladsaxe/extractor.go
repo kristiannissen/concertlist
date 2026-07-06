@@ -11,11 +11,13 @@ import (
 )
 
 // Extractor implements domain.ExtractorPort for Richter Gladsaxe.
-type Extractor struct{}
+type Extractor struct {
+	queue domain.QueuePort
+}
 
 // NewExtractor creates a new Extractor for Richter Gladsaxe.
-func NewExtractor() *Extractor {
-	return &Extractor{}
+func NewExtractor(queue domain.QueuePort) *Extractor {
+	return &Extractor{queue: queue}
 }
 
 // Extract fetches concert data from Richter Gladsaxe's index page.
@@ -60,6 +62,11 @@ func (e *Extractor) Extract(ctx context.Context) ([]domain.Concert, error) {
 			Date:  date,
 			Venue: "Richter Gladsaxe",
 			URL:   h.Request.AbsoluteURL(h.Attr("href")),
+		}
+
+		// Pass concert to queue for processing instead of collecting in slice
+		if err := e.queue.EnqueueConcert(ctx, concert); err != nil {
+			log.Printf("Failed to enqueue concert: %v", err)
 		}
 
 		concerts = append(concerts, concert)

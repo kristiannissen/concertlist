@@ -17,7 +17,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		r.URL.Path = strings.TrimPrefix(path, "/api")
 	}
 
-	// Initialize the router from internal/router
+	// Initialize the router from pkg/router
 	mux := router.NewRouter()
 	mux.ServeHTTP(w, r)
 }

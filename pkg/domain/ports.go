@@ -37,6 +37,7 @@ type StoragePort interface {
 // QueuePort defines the interface for queue operations.
 type QueuePort interface {
 	Enqueue(ctx context.Context, job ExtractionJob) error
+	EnqueueConcert(ctx context.Context, concert Concert) error
 	Process(ctx context.Context, handler QueueHandler) error
 }
 

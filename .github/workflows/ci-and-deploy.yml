@@ -31,8 +31,22 @@ jobs:
         run: go mod download
 
       - name: Run tests
-        run: go test -v ./...
-      
+        run: |
+          set +e
+          go test -v ./... 2>&1 | tee test-output.log
+          exit ${PIPESTATUS[0]}
+        shell: bash
+
+      - name: Capture test output
+        if: failure()
+        run: |
+          delimiter="EOF_$(date +%s%N)"
+          {
+            echo "TEST_OUTPUT<<$delimiter"
+            tail -c 60000 test-output.log
+            echo "$delimiter"
+          } >> "$GITHUB_ENV"
+
       - name: Tests failed
         if: failure()
         uses: JasonEtco/create-an-issue@v2

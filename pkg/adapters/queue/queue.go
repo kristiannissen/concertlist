@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 
 	"github.com/kristiannissen/concertlist/pkg/domain"
@@ -75,6 +76,13 @@ func (q *VercelQueue) authHeader(req *http.Request) {
 	}
 }
 
+// deploymentHeader sets the Vercel Deployment ID header when configured.
+func (q *VercelQueue) deploymentHeader(req *http.Request) {
+	if q.config.DeploymentID != "" {
+		req.Header.Set("Vqs-Deployment-Id", q.config.DeploymentID)
+	}
+}
+
 // SendMessage sends a single message to the configured topic.
 func (q *VercelQueue) SendMessage(ctx context.Context, body []byte, opts SendMessageOptions) error {
 	url := q.buildURL(fmt.Sprintf("/topic/%s", q.config.Topic))
@@ -89,7 +97,19 @@ func (q *VercelQueue) SendMessage(ctx context.Context, body []byte, opts SendMes
 		contentType = "application/json"
 	}
 	req.Header.Set("Content-Type", contentType)
+
+	if opts.RetentionSeconds != 0 {
+		req.Header.Set("Vqs-Retention-Seconds", fmt.Sprintf("%d", opts.RetentionSeconds))
+	}
+	if opts.DelaySeconds != 0 {
+		req.Header.Set("Vqs-Delay-Seconds", fmt.Sprintf("%d", opts.DelaySeconds))
+	}
+	if opts.IdempotencyKey != "" {
+		req.Header.Set("Vqs-Idempotency-Key", opts.IdempotencyKey)
+	}
+
 	q.authHeader(req)
+	q.deploymentHeader(req)
 
 	resp, err := q.client.Do(req)
 	if err != nil {
@@ -115,15 +135,46 @@ func (q *VercelQueue) Enqueue(ctx context.Context, job domain.ExtractionJob) err
 	return q.SendMessage(ctx, data, SendMessageOptions{ContentType: "application/json"})
 }
 
+// EnqueueConcert sends a concert to the Vercel Queue as a JSON-encoded message.
+func (q *VercelQueue) EnqueueConcert(ctx context.Context, concert domain.Concert) error {
+	data, err := json.Marshal(concert)
+	if err != nil {
+		return err
+	}
+
+	return q.SendMessage(ctx, data, SendMessageOptions{ContentType: "application/json"})
+}
+
 // ReceiveMessages retrieves messages from the configured topic/consumer.
+// Uses POST method as per Vercel Queues HTTP API specification.
 func (q *VercelQueue) ReceiveMessages(ctx context.Context, opts ReceiveMessagesOptions) (*ReceiveMessagesResponse, error) {
 	url := q.buildURL(fmt.Sprintf("/topic/%s/consumer/%s", q.config.Topic, q.config.Consumer))
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, nil)
 	if err != nil {
 		return nil, err
 	}
+
+	// Set Accept header for response format
+	accept := opts.Accept
+	if accept == "" {
+		accept = "application/x-ndjson"
+	}
+	req.Header.Set("Accept", accept)
+
+	// Set optional headers
+	if opts.MaxMessages != 0 {
+		req.Header.Set("Vqs-Max-Messages", fmt.Sprintf("%d", opts.MaxMessages))
+	}
+	if opts.VisibilityTimeoutSeconds != 0 {
+		req.Header.Set("Vqs-Visibility-Timeout-Seconds", fmt.Sprintf("%d", opts.VisibilityTimeoutSeconds))
+	}
+	if opts.MaxConcurrency != 0 {
+		req.Header.Set("Vqs-Max-Concurrency", fmt.Sprintf("%d", opts.MaxConcurrency))
+	}
+
 	q.authHeader(req)
+	q.deploymentHeader(req)
 
 	resp, err := q.client.Do(req)
 	if err != nil {
@@ -148,15 +199,73 @@ func (q *VercelQueue) ReceiveMessages(ctx context.Context, opts ReceiveMessagesO
 	return &result, nil
 }
 
+// ReceiveMessageByID retrieves a specific message by its ID from the configured topic/consumer.
+// This is useful for callback-driven processing where the message ID is known in advance.
+func (q *VercelQueue) ReceiveMessageByID(ctx context.Context, messageID string, opts ReceiveMessagesOptions) (*ReceiveMessagesResponse, error) {
+	// URL-encode the message ID as required by the API
+	encodedMessageID := url.PathEscape(messageID)
+	url := q.buildURL(fmt.Sprintf("/topic/%s/consumer/%s/id/%s", q.config.Topic, q.config.Consumer, encodedMessageID))
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// Set Accept header for response format
+	accept := opts.Accept
+	if accept == "" {
+		accept = "application/x-ndjson"
+	}
+	req.Header.Set("Accept", accept)
+
+	// Set optional headers
+	if opts.VisibilityTimeoutSeconds != 0 {
+		req.Header.Set("Vqs-Visibility-Timeout-Seconds", fmt.Sprintf("%d", opts.VisibilityTimeoutSeconds))
+	}
+	if opts.MaxConcurrency != 0 {
+		req.Header.Set("Vqs-Max-Concurrency", fmt.Sprintf("%d", opts.MaxConcurrency))
+	}
+
+	q.authHeader(req)
+	q.deploymentHeader(req)
+
+	resp, err := q.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close() //nolint:errcheck
+
+	if resp.StatusCode == http.StatusNoContent {
+		return &ReceiveMessagesResponse{}, nil
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("failed to receive message by ID: %s (status: %d)", string(respBody), resp.StatusCode)
+	}
+
+	var result ReceiveMessagesResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, err
+	}
+
+	return &result, nil
+}
+
 // AcknowledgeMessage deletes a message from the queue by its receipt handle.
+// Uses the correct /lease/ endpoint path as per Vercel Queues HTTP API specification.
 func (q *VercelQueue) AcknowledgeMessage(ctx context.Context, receiptHandle string) error {
-	url := q.buildURL(fmt.Sprintf("/topic/%s/consumer/%s/message/%s", q.config.Topic, q.config.Consumer, receiptHandle))
+	// URL-encode the receipt handle as required by the API
+	encodedReceiptHandle := url.PathEscape(receiptHandle)
+	url := q.buildURL(fmt.Sprintf("/topic/%s/consumer/%s/lease/%s", q.config.Topic, q.config.Consumer, encodedReceiptHandle))
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, nil)
 	if err != nil {
 		return err
 	}
+
 	q.authHeader(req)
+	q.deploymentHeader(req)
 
 	resp, err := q.client.Do(req)
 	if err != nil {
@@ -173,8 +282,11 @@ func (q *VercelQueue) AcknowledgeMessage(ctx context.Context, receiptHandle stri
 }
 
 // ExtendLease extends the visibility timeout of a message currently being processed.
+// Uses the correct /lease/ endpoint path as per Vercel Queues HTTP API specification.
 func (q *VercelQueue) ExtendLease(ctx context.Context, receiptHandle string, visibilityTimeoutSeconds int) error {
-	url := q.buildURL(fmt.Sprintf("/topic/%s/consumer/%s/message/%s", q.config.Topic, q.config.Consumer, receiptHandle))
+	// URL-encode the receipt handle as required by the API
+	encodedReceiptHandle := url.PathEscape(receiptHandle)
+	url := q.buildURL(fmt.Sprintf("/topic/%s/consumer/%s/lease/%s", q.config.Topic, q.config.Consumer, encodedReceiptHandle))
 
 	body, err := json.Marshal(map[string]int{"visibilityTimeoutSeconds": visibilityTimeoutSeconds})
 	if err != nil {
@@ -186,7 +298,9 @@ func (q *VercelQueue) ExtendLease(ctx context.Context, receiptHandle string, vis
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
+
 	q.authHeader(req)
+	q.deploymentHeader(req)
 
 	resp, err := q.client.Do(req)
 	if err != nil {
