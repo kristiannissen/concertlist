@@ -1,17 +1,13 @@
 // Package main is the entry point for Vercel Cron Jobs.
-// This version uses the internal package structure and async consumer.
 package main
 
 import (
 	"context"
 	"log"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
-	"github.com/kristiannissen/concertlist/internal/adapters/queue"
-	"github.com/kristiannissen/concertlist/internal/domain"
+	"github.com/kristiannissen/concertlist/pkg/adapters/queue"
+	"github.com/kristiannissen/concertlist/pkg/domain"
 )
 
 func main() {
@@ -21,24 +17,7 @@ func main() {
 		log.Fatalf("Failed to initialize queue: %v", err)
 	}
 
-	// Check if we should run in producer mode (enqueue jobs) or consumer mode (process messages)
-	mode := os.Getenv("QUEUE_MODE")
-	if mode == "" {
-		mode = "producer" // Default to producer for backward compatibility
-	}
-
-	switch mode {
-	case "producer":
-		runProducer(q)
-	case "consumer":
-		runConsumer(q)
-	default:
-		log.Fatalf("Unknown QUEUE_MODE: %s (must be 'producer' or 'consumer')", mode)
-	}
-}
-
-// runProducer enqueues extraction jobs for all venues.
-func runProducer(q *queue.VercelQueue) {
+	// Enqueue extraction jobs for all venues.
 	venues := []string{"richter_gladsaxe"} // Add more venues later.
 	for _, venue := range venues {
 		job := domain.ExtractionJob{
@@ -51,53 +30,4 @@ func runProducer(q *queue.VercelQueue) {
 			log.Printf("Enqueued job for %s", venue)
 		}
 	}
-}
-
-// runConsumer starts an async consumer to process messages from the queue.
-func runConsumer(q *queue.VercelQueue) {
-	// Create a handler for processing concerts
-	handler := func(ctx context.Context, concert domain.Concert) error {
-		// Here you would process the concert (save to storage, etc.)
-		log.Printf("Processing concert: %s at %s", concert.Title, concert.Date)
-		
-		// Simulate processing work
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(100 * time.Millisecond):
-			return nil
-		}
-	}
-
-	// Create async consumer with options
-	consumer := queue.NewAsyncConsumer(
-		q,
-		handler,
-		queue.WithConcurrency(10),
-		queue.WithVisibilityTimeout(60*time.Second),
-		queue.WithProcessTimeout(30*time.Second),
-	)
-
-	// Create context for graceful shutdown
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	// Handle signals for graceful shutdown
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-	
-	go func() {
-		<-sigChan
-		log.Println("Shutting down...")
-		consumer.Stop()
-		cancel()
-	}()
-
-	// Start the consumer
-	log.Println("Starting async queue consumer...")
-	if err := consumer.Start(ctx); err != nil {
-		log.Fatalf("Consumer failed: %v", err)
-	}
-	
-	log.Println("Consumer stopped")
 }
