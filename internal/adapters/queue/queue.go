@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"mime"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -248,10 +247,8 @@ func parseNDJSONResponse(body io.Reader) (*ReceiveMessagesResponse, error) {
 	return &result, nil
 }
 
-// ReceiveMessages retrieves messages from the configured topic/consumer.
-// Uses POST method as per Vercel Queues HTTP API specification.
-// Properly parses multipart/mixed and application/x-ndjson response formats.
-func (q *VercelQueue) ReceiveMessages(ctx context.Context, opts ReceiveMessagesOptions) (*ReceiveMessagesResponse, error) {
+// internalReceiveMessages is the internal implementation that returns the raw response.
+func (q *VercelQueue) internalReceiveMessages(ctx context.Context, opts ReceiveMessagesOptions) (*ReceiveMessagesResponse, error) {
 	url := q.buildURL(fmt.Sprintf("/topic/%s/consumer/%s", q.config.Topic, q.config.Consumer))
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, nil)
@@ -299,10 +296,33 @@ func (q *VercelQueue) ReceiveMessages(ctx context.Context, opts ReceiveMessagesO
 	return parseReceiveResponse(resp)
 }
 
-// ReceiveMessageByID retrieves a specific message by its ID from the configured topic/consumer.
-// This is useful for callback-driven processing where the message ID is known in advance.
-// Properly parses multipart/mixed and application/x-ndjson response formats.
-func (q *VercelQueue) ReceiveMessageByID(ctx context.Context, messageID string, opts ReceiveMessagesOptions) (*ReceiveMessagesResponse, error) {
+// ReceiveMessages retrieves messages from the configured topic/consumer and returns them as Concerts.
+// Implements domain.QueuePort interface.
+func (q *VercelQueue) ReceiveMessages(ctx context.Context) ([]domain.Concert, error) {
+	resp, err := q.internalReceiveMessages(ctx, ReceiveMessagesOptions{
+		Accept:                "application/x-ndjson",
+		MaxMessages:          10,
+		VisibilityTimeoutSeconds: 60,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var concerts []domain.Concert
+	for _, msg := range resp.Messages {
+		var concert domain.Concert
+		if err := json.Unmarshal(msg.Body, &concert); err != nil {
+			// If it's not a Concert, skip it
+			continue
+		}
+		concerts = append(concerts, concert)
+	}
+
+	return concerts, nil
+}
+
+// internalReceiveMessageByID is the internal implementation that returns the raw response.
+func (q *VercelQueue) internalReceiveMessageByID(ctx context.Context, messageID string, opts ReceiveMessagesOptions) (*ReceiveMessagesResponse, error) {
 	// URL-encode the message ID as required by the API
 	encodedMessageID := url.PathEscape(messageID)
 	url := q.buildURL(fmt.Sprintf("/topic/%s/consumer/%s/id/%s", q.config.Topic, q.config.Consumer, encodedMessageID))
@@ -347,6 +367,29 @@ func (q *VercelQueue) ReceiveMessageByID(ctx context.Context, messageID string, 
 
 	// Parse response based on Content-Type
 	return parseReceiveResponse(resp)
+}
+
+// ReceiveMessageByID retrieves a specific message by its ID and returns it as a Concert.
+// Implements domain.QueuePort interface.
+func (q *VercelQueue) ReceiveMessageByID(ctx context.Context, messageID string) (domain.Concert, error) {
+	resp, err := q.internalReceiveMessageByID(ctx, messageID, ReceiveMessagesOptions{
+		Accept:                "application/x-ndjson",
+		VisibilityTimeoutSeconds: 60,
+	})
+	if err != nil {
+		return domain.Concert{}, err
+	}
+
+	if len(resp.Messages) == 0 {
+		return domain.Concert{}, fmt.Errorf("no message found with ID %s", messageID)
+	}
+
+	var concert domain.Concert
+	if err := json.Unmarshal(resp.Messages[0].Body, &concert); err != nil {
+		return domain.Concert{}, fmt.Errorf("failed to parse message as Concert: %w", err)
+	}
+
+	return concert, nil
 }
 
 // AcknowledgeMessage deletes a message from the queue by its receipt handle.
