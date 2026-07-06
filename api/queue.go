@@ -72,7 +72,7 @@ func QueueHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: Save to storage once blob storage (internal/adapters/storage/blob)
+	// TODO: Save to storage once blob storage (pkg/adapters/storage/blob)
 	// is fully implemented. Wiring it in now would call unfinished stubs.
 
 	log.Printf("Processed %d concerts for %s", len(concerts), job.Venue)
