@@ -73,6 +73,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Deploy to Vercel
+        id: deploy
         uses: amondnet/vercel-action@v42
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
@@ -89,3 +90,29 @@ jobs:
           # `vercel-args: --prod` instead, which is what CLI mode actually
           # reads to promote a deployment to production.
           vercel-args: ${{ github.event_name == 'push' && '--prod' || '' }}
+
+      # amondnet/vercel-action reporting success only means it told Vercel
+      # to create a deployment, not that the deployment is healthy or that
+      # it actually replaced what's live on the production domain (both of
+      # which have silently failed before in this project, for unrelated
+      # reasons, without this job ever going red). Rather than pin the
+      # action's version to freeze this class of bug out, verify the
+      # outcome directly: hit the real production domain after a push
+      # deploy and fail the job if it isn't serving a healthy response.
+      - name: Verify production is live
+        if: github.event_name == 'push'
+        run: |
+          url="https://concertlist.vercel.app/"
+          for attempt in 1 2 3 4 5; do
+            status=$(curl -s -o response.html -w '%{http_code}' "$url")
+            if [ "$status" = "200" ]; then
+              echo "Production is live (attempt $attempt): $url returned 200"
+              exit 0
+            fi
+            echo "Attempt $attempt: $url returned $status, retrying in 10s..."
+            sleep 10
+          done
+          echo "Production check failed: $url returned $status after 5 attempts"
+          echo "--- response body ---"
+          cat response.html
+          exit 1
