@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/kristiannissen/concertlist/internal/router"
+	"github.com/kristiannissen/concertlist/pkg/router"
 )
 
 // main is the entry point for Vercel's Go runtime.

@@ -4,7 +4,7 @@ package router
 import (
 	"net/http"
 
-	"github.com/kristiannissen/concertlist/internal/handler"
+	"github.com/kristiannissen/concertlist/pkg/handler"
 )
 
 // NewRouter creates and configures the main ServeMux router.

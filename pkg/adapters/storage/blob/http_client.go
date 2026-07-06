@@ -9,7 +9,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/kristiannissen/concertlist/internal/domain"
+	"github.com/kristiannissen/concertlist/pkg/domain"
 )
 
 // HTTPClient implements domain.StoragePort using Vercel Blob HTTP API.
