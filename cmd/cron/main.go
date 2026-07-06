@@ -6,8 +6,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/kristiannissen/concertlist/internal/adapters/queue"
-	"github.com/kristiannissen/concertlist/internal/domain"
+	"github.com/kristiannissen/concertlist/pkg/adapters/queue"
+	"github.com/kristiannissen/concertlist/pkg/domain"
 )
 
 func main() {

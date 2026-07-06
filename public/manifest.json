@@ -1,0 +1,13 @@
+{
+    "name": "RETRO CONCERTLIST",
+    "short_name": "RetroConcert",
+    "description": "1980s Arcade Edition - Se kommende koncerter i Danmark",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#0a0116",
+    "theme_color": "#ff007f",
+    "icons": [
+        {"src": "/icon-192x192.png", "sizes": "192x192", "type": "image/png"},
+        {"src": "/icon-512x512.png", "sizes": "512x512", "type": "image/png"}
+    ]
+}

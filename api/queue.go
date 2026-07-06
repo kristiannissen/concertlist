@@ -7,11 +7,10 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"os"
 
-	"github.com/kristiannissen/concertlist/internal/adapters/etl/extractors/richter_gladsaxe"
-	"github.com/kristiannissen/concertlist/internal/adapters/queue"
-	"github.com/kristiannissen/concertlist/internal/domain"
+	"github.com/kristiannissen/concertlist/pkg/adapters/etl/extractors/richter_gladsaxe"
+	"github.com/kristiannissen/concertlist/pkg/adapters/queue"
+	"github.com/kristiannissen/concertlist/pkg/domain"
 )
 
 // QueueHandler processes queue messages from Vercel Queues (push-based).

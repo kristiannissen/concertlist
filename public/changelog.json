@@ -1,0 +1,12 @@
+{
+    "version": "3.0.0",
+    "date": "2026-07-06",
+    "changes": [
+        {"title": "1980s Arcade Theme", "description": "Complete visual overhaul with retro pixel arcade aesthetic. Deep purple background, cyber cyan accents, and hot pink highlights.", "type": "feature"},
+        {"title": "CRT Screen Emulation", "description": "Added authentic CRT scanline effects and screen curvature using pure CSS.", "type": "feature"},
+        {"title": "Pixel Font Typography", "description": "Blocky monospace fonts (Press Start 2P) for that authentic 8-bit arcade look.", "type": "feature"},
+        {"title": "Neon Glow Effects", "description": "Text shadows and glowing effects on all interactive elements.", "type": "feature"},
+        {"title": "8-bit Pixel Borders", "description": "Pixelated border styles for cards and buttons.", "type": "feature"},
+        {"title": "Arcade Color Palette", "description": "New color scheme with Deep Purple, Arcade Purple, Hot Pink, Cyber Cyan, Neon Green, Radical Orange.", "type": "feature"}
+    ]
+}
