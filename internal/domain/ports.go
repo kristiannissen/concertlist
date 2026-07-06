@@ -43,9 +43,9 @@ type QueuePort interface {
 	// Process processes queue messages (for push-based consumers).
 	Process(ctx context.Context, handler QueueHandler) error
 	// ReceiveMessages retrieves messages from the queue for polling-based consumers.
-	ReceiveMessages(ctx context.Context) ([]byte, error)
+	ReceiveMessages(ctx context.Context) ([]Concert, error)
 	// ReceiveMessageByID retrieves a specific message by its ID.
-	ReceiveMessageByID(ctx context.Context, messageID string) ([]byte, error)
+	ReceiveMessageByID(ctx context.Context, messageID string) (Concert, error)
 	// AcknowledgeMessage acknowledges successful processing of a message.
 	AcknowledgeMessage(ctx context.Context, receiptHandle string) error
 	// ExtendLease extends the visibility timeout of a message.
