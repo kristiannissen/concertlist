@@ -3,7 +3,7 @@
 ## Commands
 
 ```
-go run ./pkg/etl
+go run ./internal/etl
 ```
 Runs extract, transform and load
 

@@ -8,9 +8,9 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/kristiannissen/concertlist/pkg/adapters/etl/extractors/richter_gladsaxe"
-	"github.com/kristiannissen/concertlist/pkg/adapters/queue"
-	"github.com/kristiannissen/concertlist/pkg/domain"
+	"github.com/kristiannissen/concertlist/internal/adapters/etl/extractors/richter_gladsaxe"
+	"github.com/kristiannissen/concertlist/internal/adapters/queue"
+	"github.com/kristiannissen/concertlist/internal/domain"
 )
 
 // QueueHandler processes queue messages from Vercel Queues (push-based).
@@ -72,7 +72,7 @@ func QueueHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: Save to storage once blob storage (pkg/adapters/storage/blob)
+	// TODO: Save to storage once blob storage (internal/adapters/storage/blob)
 	// is fully implemented. Wiring it in now would call unfinished stubs.
 
 	log.Printf("Processed %d concerts for %s", len(concerts), job.Venue)

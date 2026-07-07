@@ -5,7 +5,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/kristiannissen/concertlist/pkg/domain"
+	"github.com/kristiannissen/concertlist/internal/domain"
 )
 
 // MockQueuePort is a mock implementation of domain.QueuePort for testing.

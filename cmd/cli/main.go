@@ -9,8 +9,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/kristiannissen/concertlist/pkg/adapters/etl/extractors/richter_gladsaxe"
-	"github.com/kristiannissen/concertlist/pkg/domain"
+	"github.com/kristiannissen/concertlist/internal/adapters/etl/extractors/richter_gladsaxe"
+	"github.com/kristiannissen/concertlist/internal/domain"
 )
 
 // noopQueue is a no-op domain.QueuePort used for local CLI testing, where

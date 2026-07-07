@@ -11,7 +11,7 @@ import (
 	"net/url"
 	"os"
 
-	"github.com/kristiannissen/concertlist/pkg/domain"
+	"github.com/kristiannissen/concertlist/internal/domain"
 )
 
 // DefaultRegion is the Vercel region used when none is specified in the config.

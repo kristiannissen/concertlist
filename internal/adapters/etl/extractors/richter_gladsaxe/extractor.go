@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/gocolly/colly/v2"
-	"github.com/kristiannissen/concertlist/pkg/domain"
+	"github.com/kristiannissen/concertlist/internal/domain"
 )
 
 // Extractor implements domain.ExtractorPort for Richter Gladsaxe.
