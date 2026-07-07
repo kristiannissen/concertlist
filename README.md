@@ -14,6 +14,7 @@ Runs command-line
 
 
 ### Structure
+```
 .
 ├── cmd
 │   └── cli
@@ -30,3 +31,5 @@ Runs command-line
 └── go.mod
 
 6 directories, 7 files
+```
+
