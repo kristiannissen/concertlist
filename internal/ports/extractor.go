@@ -5,5 +5,5 @@ package ports
 //
 //
 type Extractor interface {
-    Extract(url, selctor string) error
+    Extract(url string, selctors []string) error
 }

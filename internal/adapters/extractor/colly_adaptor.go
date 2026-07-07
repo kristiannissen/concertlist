@@ -52,13 +52,15 @@ func NewCollyExtractor(opts ...Option) ports.Extractor {
 }
 
 //
-func (e *CollyExtractor) Extract(url, selector string) error {
-    e.collector.OnHTML(selector, func(h *colly.HTMLElement) {
-        if e.processor != nil {
-            event := e.processor(h)
-            _ = e.queue.Push(event) // TODO: handle _
-        }
-    })
+func (e *CollyExtractor) Extract(url string, selectors []string) error {
+    for _, selector := range selectors {
+        e.collector.OnHTML(selector, func(h *colly.HTMLElement) {
+            if e.processor != nil {
+                event := e.processor(h)
+                _ = e.queue.Push(event) // TODO: handle _
+            }
+        })
+    }
 
     err := e.collector.Visit(url)
     e.collector.Wait()
