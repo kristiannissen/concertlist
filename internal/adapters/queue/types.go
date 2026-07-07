@@ -3,11 +3,11 @@ package queue
 
 // Message represents a message received from Vercel Queues.
 type Message struct {
-	ID            string            "json:"id""
-	Body          []byte            "json:"body""
-	ContentType   string            "json:"contentType""
-	ReceiptHandle string            "json:"receiptHandle""
-	Attributes    map[string]string "json:"attributes,omitempty""
+	ID            string            `json:"id"`
+	Body          []byte            `json:"body"`
+	ContentType   string            `json:"contentType"`
+	ReceiptHandle string            `json:"receiptHandle"`
+	Attributes    map[string]string `json:"attributes,omitempty"`
 }
 
 // SendMessageOptions contains options for sending a message.
