@@ -37,8 +37,12 @@ func main() {
 }
 
 // runProducer enqueues extraction jobs for all venues.
+//
+// TODO: no venue extractors are implemented yet (the old richter_gladsaxe
+// prototype was removed along with the pkg/ scaffolding it depended on).
+// Add venue names here once a corresponding extractor exists.
 func runProducer(q *queue.VercelQueue) {
-	venues := []string{"richter_gladsaxe"} // Add more venues later.
+	venues := []string{}
 	for _, venue := range venues {
 		job := domain.ExtractionJob{
 			Venue:     venue,
