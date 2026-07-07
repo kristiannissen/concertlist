@@ -221,8 +221,7 @@ func parseNDJSONResponse(body io.Reader) (*ReceiveMessagesResponse, error) {
 	}
 	
 	// Split by newlines
-	lines := strings.Split(string(data), "
-")
+	lines := strings.Split(string(data), "\n")
 	
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
