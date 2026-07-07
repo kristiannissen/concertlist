@@ -7,9 +7,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 
 	"github.com/kristiannissen/concertlist/internal/domain"
 )
@@ -53,8 +55,8 @@ func NewVercelQueue(config QueueConfig) (*VercelQueue, error) {
 }
 
 // NewVercelQueueFromEnv creates a new VercelQueue using environment variables:
-// QUEUE_NAME (required, used as Topic), QUEUE_REGION, QUEUE_CONSUMER, and
-// VERCEL_OIDC_TOKEN (injected automatically by Vercel at runtime).
+// QUEUE_NAME (required, used as Topic), QUEUE_REGION, QUEUE_CONSUMER,
+// VERCEL_OIDC_TOKEN, and VERCEL_DEPLOYMENT_ID (all injected automatically by Vercel at runtime).
 func NewVercelQueueFromEnv() (*VercelQueue, error) {
 	topic := os.Getenv("QUEUE_NAME")
 	if topic == "" {
@@ -62,10 +64,11 @@ func NewVercelQueueFromEnv() (*VercelQueue, error) {
 	}
 
 	return NewVercelQueue(QueueConfig{
-		Topic:     topic,
-		Region:    os.Getenv("QUEUE_REGION"),
-		Consumer:  os.Getenv("QUEUE_CONSUMER"),
-		OIDCToken: os.Getenv("VERCEL_OIDC_TOKEN"),
+		Topic:        topic,
+		Region:       os.Getenv("QUEUE_REGION"),
+		Consumer:     os.Getenv("QUEUE_CONSUMER"),
+		OIDCToken:    os.Getenv("VERCEL_OIDC_TOKEN"),
+		DeploymentID: os.Getenv("VERCEL_DEPLOYMENT_ID"),
 	})
 }
 
@@ -145,9 +148,106 @@ func (q *VercelQueue) EnqueueConcert(ctx context.Context, concert domain.Concert
 	return q.SendMessage(ctx, data, SendMessageOptions{ContentType: "application/json"})
 }
 
-// ReceiveMessages retrieves messages from the configured topic/consumer.
-// Uses POST method as per Vercel Queues HTTP API specification.
-func (q *VercelQueue) ReceiveMessages(ctx context.Context, opts ReceiveMessagesOptions) (*ReceiveMessagesResponse, error) {
+// parseReceiveResponse parses the response body based on the Content-Type header.
+// Vercel Queues returns either multipart/mixed or application/x-ndjson.
+func parseReceiveResponse(resp *http.Response) (*ReceiveMessagesResponse, error) {
+	contentType := resp.Header.Get("Content-Type")
+	
+	// Handle multipart/mixed response
+	if strings.HasPrefix(contentType, "multipart/mixed") {
+		return parseMultipartResponse(resp.Body)
+	}
+	
+	// Handle application/x-ndjson response (newline-delimited JSON)
+	if strings.HasPrefix(contentType, "application/x-ndjson") {
+		return parseNDJSONResponse(resp.Body)
+	}
+	
+	// Fallback: try to parse as JSON (for testing with mock servers)
+	var result ReceiveMessagesResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+	return &result, nil
+}
+
+// parseMultipartResponse parses a multipart/mixed response body.
+func parseMultipartResponse(body io.Reader) (*ReceiveMessagesResponse, error) {
+	var result ReceiveMessagesResponse
+	
+	// Parse the multipart response
+	mr := multipart.NewReader(body, "")
+	for {
+		part, err := mr.NextPart()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, fmt.Errorf("failed to read multipart part: %w", err)
+		}
+
+		// Read the part content
+		partData, err := io.ReadAll(part)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read part data: %w", err)
+		}
+
+		// Parse the part as a Message
+		var msg Message
+		if err := json.Unmarshal(partData, &msg); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal message: %w", err)
+		}
+		
+		// Extract receipt handle from headers if available
+		if receiptHandle := part.Header.Get("Vqs-Receipt-Handle"); receiptHandle != "" {
+			msg.ReceiptHandle = receiptHandle
+		}
+		
+		result.Messages = append(result.Messages, msg)
+		result.ReceiptHandles = append(result.ReceiptHandles, msg.ReceiptHandle)
+	}
+	
+	return &result, nil
+}
+
+// parseNDJSONResponse parses a newline-delimited JSON response body.
+func parseNDJSONResponse(body io.Reader) (*ReceiveMessagesResponse, error) {
+	var result ReceiveMessagesResponse
+	
+	// Read the entire body
+	data, err := io.ReadAll(body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+	
+	// Split by newlines
+	lines := strings.Split(string(data), "\n")
+	
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		
+		// Parse as JSON Message
+		var msg Message
+		if err := json.Unmarshal([]byte(line), &msg); err != nil {
+			// Try to parse as a simple string message
+			msg.Body = []byte(line)
+			msg.ContentType = "text/plain"
+		}
+		
+		result.Messages = append(result.Messages, msg)
+		if msg.ReceiptHandle != "" {
+			result.ReceiptHandles = append(result.ReceiptHandles, msg.ReceiptHandle)
+		}
+	}
+	
+	return &result, nil
+}
+
+// internalReceiveMessages is the internal implementation that returns the raw response.
+func (q *VercelQueue) internalReceiveMessages(ctx context.Context, opts ReceiveMessagesOptions) (*ReceiveMessagesResponse, error) {
 	url := q.buildURL(fmt.Sprintf("/topic/%s/consumer/%s", q.config.Topic, q.config.Consumer))
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, nil)
@@ -191,17 +291,37 @@ func (q *VercelQueue) ReceiveMessages(ctx context.Context, opts ReceiveMessagesO
 		return nil, fmt.Errorf("failed to receive messages: %s (status: %d)", string(respBody), resp.StatusCode)
 	}
 
-	var result ReceiveMessagesResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	// Parse response based on Content-Type
+	return parseReceiveResponse(resp)
+}
+
+// ReceiveMessages retrieves messages from the configured topic/consumer and returns them as Concerts.
+// Implements domain.QueuePort interface.
+func (q *VercelQueue) ReceiveMessages(ctx context.Context) ([]domain.Concert, error) {
+	resp, err := q.internalReceiveMessages(ctx, ReceiveMessagesOptions{
+		Accept:                "application/x-ndjson",
+		MaxMessages:          10,
+		VisibilityTimeoutSeconds: 60,
+	})
+	if err != nil {
 		return nil, err
 	}
 
-	return &result, nil
+	var concerts []domain.Concert
+	for _, msg := range resp.Messages {
+		var concert domain.Concert
+		if err := json.Unmarshal(msg.Body, &concert); err != nil {
+			// If it's not a Concert, skip it
+			continue
+		}
+		concerts = append(concerts, concert)
+	}
+
+	return concerts, nil
 }
 
-// ReceiveMessageByID retrieves a specific message by its ID from the configured topic/consumer.
-// This is useful for callback-driven processing where the message ID is known in advance.
-func (q *VercelQueue) ReceiveMessageByID(ctx context.Context, messageID string, opts ReceiveMessagesOptions) (*ReceiveMessagesResponse, error) {
+// internalReceiveMessageByID is the internal implementation that returns the raw response.
+func (q *VercelQueue) internalReceiveMessageByID(ctx context.Context, messageID string, opts ReceiveMessagesOptions) (*ReceiveMessagesResponse, error) {
 	// URL-encode the message ID as required by the API
 	encodedMessageID := url.PathEscape(messageID)
 	url := q.buildURL(fmt.Sprintf("/topic/%s/consumer/%s/id/%s", q.config.Topic, q.config.Consumer, encodedMessageID))
@@ -244,12 +364,31 @@ func (q *VercelQueue) ReceiveMessageByID(ctx context.Context, messageID string, 
 		return nil, fmt.Errorf("failed to receive message by ID: %s (status: %d)", string(respBody), resp.StatusCode)
 	}
 
-	var result ReceiveMessagesResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, err
+	// Parse response based on Content-Type
+	return parseReceiveResponse(resp)
+}
+
+// ReceiveMessageByID retrieves a specific message by its ID and returns it as a Concert.
+// Implements domain.QueuePort interface.
+func (q *VercelQueue) ReceiveMessageByID(ctx context.Context, messageID string) (domain.Concert, error) {
+	resp, err := q.internalReceiveMessageByID(ctx, messageID, ReceiveMessagesOptions{
+		Accept:                "application/x-ndjson",
+		VisibilityTimeoutSeconds: 60,
+	})
+	if err != nil {
+		return domain.Concert{}, err
 	}
 
-	return &result, nil
+	if len(resp.Messages) == 0 {
+		return domain.Concert{}, fmt.Errorf("no message found with ID %s", messageID)
+	}
+
+	var concert domain.Concert
+	if err := json.Unmarshal(resp.Messages[0].Body, &concert); err != nil {
+		return domain.Concert{}, fmt.Errorf("failed to parse message as Concert: %w", err)
+	}
+
+	return concert, nil
 }
 
 // AcknowledgeMessage deletes a message from the queue by its receipt handle.
