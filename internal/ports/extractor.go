@@ -2,8 +2,11 @@
 //
 package ports
 
+import (
+    "github.com/kristiannissen/concertlist/internal/domain"
+)
 //
 //
 type Extractor interface {
-    Extract(url string, selctors []string) error
+    Extract(url string) ([]domain.MusicEvent, error)
 }

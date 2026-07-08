@@ -11,24 +11,12 @@ import (
 )
 
 //
-type EventProcessor func(e *colly.HTMLElement) domain.MusicEvent
-
-//
 type CollyExtractor struct {
     collector *colly.Collector
-    processor EventProcessor
-    queue ports.Queue
 }
 
 //
 type Option func(*CollyExtractor)
-
-//
-func WithQueue(q ports.Queue) Option {
-    return func(e *CollyExtractor) {
-        e.queue = q
-    }
-}
 
 //
 func NewCollyExtractor(opts ...Option) ports.Extractor {
@@ -52,18 +40,8 @@ func NewCollyExtractor(opts ...Option) ports.Extractor {
 }
 
 //
-func (e *CollyExtractor) Extract(url string, selectors []string) error {
-    for _, selector := range selectors {
-        e.collector.OnHTML(selector, func(h *colly.HTMLElement) {
-            if e.processor != nil {
-                event := e.processor(h)
-                _ = e.queue.Push(event) // TODO: handle _
-            }
-        })
-    }
+func (e *CollyExtractor) Extract(url string) ([]domain.MusicEvent, error) {
+    var events []domain.MusicEvent
 
-    err := e.collector.Visit(url)
-    e.collector.Wait()
-
-    return err
+    return events, nil
 }
