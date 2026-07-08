@@ -14,13 +14,13 @@ import (
 // AsyncConsumer provides asynchronous message processing for Vercel Queues.
 // It implements a worker pool pattern for concurrent message processing.
 type AsyncConsumer struct {
-	queue            *VercelQueue
-	concurrency      int
+	queue             *VercelQueue
+	concurrency       int
 	visibilityTimeout time.Duration
-	processTimeout   time.Duration
-	handler          func(ctx context.Context, concert domain.Concert) error
-	stopChan         chan struct{}
-	wg               sync.WaitGroup
+	processTimeout    time.Duration
+	handler           func(ctx context.Context, concert domain.Concert) error
+	stopChan          chan struct{}
+	wg                sync.WaitGroup
 }
 
 // AsyncConsumerOption is a function that configures an AsyncConsumer.
@@ -52,12 +52,12 @@ func WithProcessTimeout(d time.Duration) AsyncConsumerOption {
 // NewAsyncConsumer creates a new async consumer for the given queue.
 func NewAsyncConsumer(queue *VercelQueue, handler func(ctx context.Context, concert domain.Concert) error, opts ...AsyncConsumerOption) *AsyncConsumer {
 	c := &AsyncConsumer{
-		queue:            queue,
-		concurrency:      10,
+		queue:             queue,
+		concurrency:       10,
 		visibilityTimeout: 60 * time.Second,
-		processTimeout:   30 * time.Second,
-		handler:          handler,
-		stopChan:         make(chan struct{}),
+		processTimeout:    30 * time.Second,
+		handler:           handler,
+		stopChan:          make(chan struct{}),
 	}
 
 	for _, opt := range opts {
@@ -85,11 +85,11 @@ func (c *AsyncConsumer) Start(ctx context.Context) error {
 
 	// Wait for stop signal
 	<-c.stopChan
-	
+
 	// Close channel and wait for workers to finish
 	close(messageChan)
 	c.wg.Wait()
-	
+
 	return nil
 }
 
@@ -111,11 +111,11 @@ func (c *AsyncConsumer) poll(ctx context.Context, messageChan chan<- domain.Conc
 		default:
 			// Receive messages with visibility timeout
 			opts := ReceiveMessagesOptions{
-				MaxMessages:            c.concurrency,
+				MaxMessages:              c.concurrency,
 				VisibilityTimeoutSeconds: int(c.visibilityTimeout.Seconds()),
-				Accept:                 "application/x-ndjson",
+				Accept:                   "application/x-ndjson",
 			}
-			
+
 			resp, err := c.queue.internalReceiveMessages(ctx, opts)
 			if err != nil {
 				log.Printf("Error receiving messages: %v", err)
@@ -162,7 +162,7 @@ func (c *AsyncConsumer) worker(ctx context.Context, messageChan <-chan domain.Co
 	for concert := range messageChan {
 		// Create a context with timeout for processing
 		processCtx, cancel := context.WithTimeout(ctx, c.processTimeout)
-		
+
 		// Process the message
 		err := c.handler(processCtx, concert)
 		cancel()

@@ -37,7 +37,7 @@ func TestSendMessageOptions(t *testing.T) {
 	t.Parallel()
 
 	opts := SendMessageOptions{
-		ContentType:     "application/json",
+		ContentType:      "application/json",
 		RetentionSeconds: 86400,
 		DelaySeconds:     60,
 		IdempotencyKey:   "unique-key-123",
@@ -61,10 +61,10 @@ func TestReceiveMessagesOptions(t *testing.T) {
 	t.Parallel()
 
 	opts := ReceiveMessagesOptions{
-		MaxMessages:            5,
+		MaxMessages:              5,
 		VisibilityTimeoutSeconds: 120,
-		MaxConcurrency:         10,
-		Accept:                 "application/x-ndjson",
+		MaxConcurrency:           10,
+		Accept:                   "application/x-ndjson",
 	}
 
 	if opts.MaxMessages != 5 {
@@ -88,7 +88,7 @@ func TestReceiveMessagesResponse(t *testing.T) {
 	msg2 := Message{ID: "msg-2", Body: []byte("message 2")}
 
 	resp := ReceiveMessagesResponse{
-		Messages:      []Message{msg1, msg2},
+		Messages:       []Message{msg1, msg2},
 		ReceiptHandles: []string{"receipt-1", "receipt-2"},
 	}
 

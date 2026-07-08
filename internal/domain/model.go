@@ -15,8 +15,8 @@ type MusicEvent struct {
 
 // Location represents the venue where the event takes place.
 type Location struct {
-	Type    string       `json:"@type"`
-	Name    string       `json:"name"`
+	Type    string        `json:"@type"`
+	Name    string        `json:"name"`
 	Address PostalAddress `json:"address"`
 }
 

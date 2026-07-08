@@ -12,7 +12,7 @@ type Message struct {
 
 // SendMessageOptions contains options for sending a message.
 type SendMessageOptions struct {
-	ContentType     string
+	ContentType      string
 	RetentionSeconds int
 	DelaySeconds     int
 	IdempotencyKey   string
@@ -20,15 +20,15 @@ type SendMessageOptions struct {
 
 // ReceiveMessagesOptions contains options for receiving messages.
 type ReceiveMessagesOptions struct {
-	MaxMessages            int
+	MaxMessages              int
 	VisibilityTimeoutSeconds int
-	MaxConcurrency         int
-	Accept                 string
+	MaxConcurrency           int
+	Accept                   string
 }
 
 // ReceiveMessagesResponse contains the response from receiving messages.
 type ReceiveMessagesResponse struct {
-	Messages      []Message
+	Messages       []Message
 	ReceiptHandles []string
 }
 

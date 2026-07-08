@@ -152,17 +152,17 @@ func (q *VercelQueue) EnqueueConcert(ctx context.Context, concert domain.Concert
 // Vercel Queues returns either multipart/mixed or application/x-ndjson.
 func parseReceiveResponse(resp *http.Response) (*ReceiveMessagesResponse, error) {
 	contentType := resp.Header.Get("Content-Type")
-	
+
 	// Handle multipart/mixed response
 	if strings.HasPrefix(contentType, "multipart/mixed") {
 		return parseMultipartResponse(resp.Body)
 	}
-	
+
 	// Handle application/x-ndjson response (newline-delimited JSON)
 	if strings.HasPrefix(contentType, "application/x-ndjson") {
 		return parseNDJSONResponse(resp.Body)
 	}
-	
+
 	// Fallback: try to parse as JSON (for testing with mock servers)
 	var result ReceiveMessagesResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
@@ -174,7 +174,7 @@ func parseReceiveResponse(resp *http.Response) (*ReceiveMessagesResponse, error)
 // parseMultipartResponse parses a multipart/mixed response body.
 func parseMultipartResponse(body io.Reader) (*ReceiveMessagesResponse, error) {
 	var result ReceiveMessagesResponse
-	
+
 	// Parse the multipart response
 	mr := multipart.NewReader(body, "")
 	for {
@@ -197,38 +197,38 @@ func parseMultipartResponse(body io.Reader) (*ReceiveMessagesResponse, error) {
 		if err := json.Unmarshal(partData, &msg); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal message: %w", err)
 		}
-		
+
 		// Extract receipt handle from headers if available
 		if receiptHandle := part.Header.Get("Vqs-Receipt-Handle"); receiptHandle != "" {
 			msg.ReceiptHandle = receiptHandle
 		}
-		
+
 		result.Messages = append(result.Messages, msg)
 		result.ReceiptHandles = append(result.ReceiptHandles, msg.ReceiptHandle)
 	}
-	
+
 	return &result, nil
 }
 
 // parseNDJSONResponse parses a newline-delimited JSON response body.
 func parseNDJSONResponse(body io.Reader) (*ReceiveMessagesResponse, error) {
 	var result ReceiveMessagesResponse
-	
+
 	// Read the entire body
 	data, err := io.ReadAll(body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
-	
+
 	// Split by newlines
 	lines := strings.Split(string(data), "\n")
-	
+
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}
-		
+
 		// Parse as JSON Message
 		var msg Message
 		if err := json.Unmarshal([]byte(line), &msg); err != nil {
@@ -236,13 +236,13 @@ func parseNDJSONResponse(body io.Reader) (*ReceiveMessagesResponse, error) {
 			msg.Body = []byte(line)
 			msg.ContentType = "text/plain"
 		}
-		
+
 		result.Messages = append(result.Messages, msg)
 		if msg.ReceiptHandle != "" {
 			result.ReceiptHandles = append(result.ReceiptHandles, msg.ReceiptHandle)
 		}
 	}
-	
+
 	return &result, nil
 }
 
@@ -299,8 +299,8 @@ func (q *VercelQueue) internalReceiveMessages(ctx context.Context, opts ReceiveM
 // Implements domain.QueuePort interface.
 func (q *VercelQueue) ReceiveMessages(ctx context.Context) ([]domain.Concert, error) {
 	resp, err := q.internalReceiveMessages(ctx, ReceiveMessagesOptions{
-		Accept:                "application/x-ndjson",
-		MaxMessages:          10,
+		Accept:                   "application/x-ndjson",
+		MaxMessages:              10,
 		VisibilityTimeoutSeconds: 60,
 	})
 	if err != nil {
@@ -372,7 +372,7 @@ func (q *VercelQueue) internalReceiveMessageByID(ctx context.Context, messageID 
 // Implements domain.QueuePort interface.
 func (q *VercelQueue) ReceiveMessageByID(ctx context.Context, messageID string) (domain.Concert, error) {
 	resp, err := q.internalReceiveMessageByID(ctx, messageID, ReceiveMessagesOptions{
-		Accept:                "application/x-ndjson",
+		Accept:                   "application/x-ndjson",
 		VisibilityTimeoutSeconds: 60,
 	})
 	if err != nil {

@@ -11,10 +11,10 @@ const (
 
 // UploadOptions contains options for uploading a blob.
 type UploadOptions struct {
-	ContentType      string
-	Access           BlobAccess
-	AddRandomSuffix  bool
-	AllowOverwrite   bool
+	ContentType        string
+	Access             BlobAccess
+	AddRandomSuffix    bool
+	AllowOverwrite     bool
 	CacheControlMaxAge int
 }
 
@@ -60,7 +60,7 @@ type MultipartUploadCreateResponse struct {
 // MultipartUploadPart contains information about a part in a multipart upload.
 type MultipartUploadPart struct {
 	PartNumber int
-	ETag      string
+	ETag       string
 }
 
 // MultipartUploadCompleteRequest contains the request for completing a multipart upload.
@@ -75,7 +75,7 @@ type SignedTokenRequest struct {
 	MaximumSizeInBytes  int
 	ValidUntil          string
 	AddRandomSuffix     bool
-	Access             string
+	Access              string
 }
 
 // SignedTokenResponse contains the response for a signed token.

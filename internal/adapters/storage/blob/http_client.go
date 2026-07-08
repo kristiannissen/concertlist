@@ -14,29 +14,29 @@ import (
 
 // HTTPClient implements domain.StoragePort using Vercel Blob HTTP API.
 type HTTPClient struct {
-	storeID       string
-	accessToken   string
-	apiVersion    string
-	baseURL       string
+	storeID        string
+	accessToken    string
+	apiVersion     string
+	baseURL        string
 	storageBaseURL string
 }
 
 // HTTPClientConfig holds configuration for the HTTP client.
 type HTTPClientConfig struct {
-	StoreID       string
-	AccessToken   string
-	APIVersion    string
-	BaseURL       string
+	StoreID        string
+	AccessToken    string
+	APIVersion     string
+	BaseURL        string
 	StorageBaseURL string
 }
 
 // NewHTTPClient creates a new HTTPClient for Vercel Blob storage.
 func NewHTTPClient(config HTTPClientConfig) *HTTPClient {
 	return &HTTPClient{
-		storeID:       config.StoreID,
-		accessToken:   config.AccessToken,
-		apiVersion:    config.APIVersion,
-		baseURL:       config.BaseURL,
+		storeID:        config.StoreID,
+		accessToken:    config.AccessToken,
+		apiVersion:     config.APIVersion,
+		baseURL:        config.BaseURL,
 		storageBaseURL: config.StorageBaseURL,
 	}
 }
@@ -44,7 +44,7 @@ func NewHTTPClient(config HTTPClientConfig) *HTTPClient {
 // Save stores concerts in Vercel Blob storage.
 func (c *HTTPClient) Save(ctx context.Context, concerts []domain.Concert) error {
 	const defaultPathname = "concerts.json"
-	
+
 	// Marshal concerts to JSON
 	data, err := json.MarshalIndent(concerts, "", "  ")
 	if err != nil {
@@ -91,19 +91,19 @@ func (c *HTTPClient) Save(ctx context.Context, concerts []domain.Concert) error 
 // Load retrieves concerts from Vercel Blob storage.
 func (c *HTTPClient) Load(ctx context.Context) ([]domain.Concert, error) {
 	const defaultPathname = "concerts.json"
-	
+
 	// Create URL for the stored concerts file
 	url := fmt.Sprintf("%s/%s", c.storageBaseURL, defaultPathname)
-	
+
 	// Create HTTP request with context
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
-	
+
 	// Set Authorization header for private blobs
 	req.Header.Set("Authorization", "Bearer "+c.accessToken)
-	
+
 	// Create HTTP client and execute request
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -144,7 +144,7 @@ func (c *HTTPClient) Load(ctx context.Context) ([]domain.Concert, error) {
 func (c *HTTPClient) uploadBlob(ctx context.Context, pathname string, data io.Reader, contentType string, access string) error {
 	// Create request URL with pathname query parameter
 	url := fmt.Sprintf("%s/?pathname=%s", c.baseURL, pathname)
-	
+
 	// Create HTTP request with context and data body
 	req, err := http.NewRequestWithContext(ctx, http.MethodPut, url, data)
 	if err != nil {
@@ -158,7 +158,7 @@ func (c *HTTPClient) uploadBlob(ctx context.Context, pathname string, data io.Re
 	req.Header.Set("x-vercel-blob-access", access)
 	req.Header.Set("x-content-type", contentType)
 	req.Header.Set("x-allow-overwrite", "1")
-	
+
 	// Create HTTP client and execute request
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -180,23 +180,23 @@ func (c *HTTPClient) uploadBlob(ctx context.Context, pathname string, data io.Re
 func (c *HTTPClient) downloadBlob(ctx context.Context, pathname string) (io.ReadCloser, error) {
 	// Create URL for the blob file
 	url := fmt.Sprintf("%s/%s", c.storageBaseURL, pathname)
-	
+
 	// Create HTTP request with context
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
-	
+
 	// Set Authorization header for private blobs
 	req.Header.Set("Authorization", "Bearer "+c.accessToken)
-	
+
 	// Create HTTP client and execute request
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute request: %w", err)
 	}
-	
+
 	// Check response status
 	if resp.StatusCode >= http.StatusBadRequest {
 		body, _ := io.ReadAll(resp.Body)
@@ -212,7 +212,7 @@ func (c *HTTPClient) downloadBlob(ctx context.Context, pathname string) (io.Read
 func (c *HTTPClient) listBlobs(ctx context.Context, prefix string) ([]domain.Concert, error) {
 	// Create request URL with prefix and mode query parameters
 	url := fmt.Sprintf("%s/?prefix=%s&mode=expanded", c.baseURL, prefix)
-	
+
 	// Create HTTP request with context
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
@@ -223,7 +223,7 @@ func (c *HTTPClient) listBlobs(ctx context.Context, prefix string) ([]domain.Con
 	req.Header.Set("Authorization", "Bearer "+c.accessToken)
 	req.Header.Set("x-vercel-blob-store-id", c.storeID)
 	req.Header.Set("x-api-version", c.apiVersion)
-	
+
 	// Create HTTP client and execute request
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -260,7 +260,7 @@ func (c *HTTPClient) listBlobs(ctx context.Context, prefix string) ([]domain.Con
 func (c *HTTPClient) deleteBlob(ctx context.Context, pathname string) error {
 	// Create request URL with pathname query parameter
 	url := fmt.Sprintf("%s/?pathname=%s", c.baseURL, pathname)
-	
+
 	// Create HTTP request with context
 	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, nil)
 	if err != nil {
@@ -271,7 +271,7 @@ func (c *HTTPClient) deleteBlob(ctx context.Context, pathname string) error {
 	req.Header.Set("Authorization", "Bearer "+c.accessToken)
 	req.Header.Set("x-vercel-blob-store-id", c.storeID)
 	req.Header.Set("x-api-version", c.apiVersion)
-	
+
 	// Create HTTP client and execute request
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -293,14 +293,14 @@ func (c *HTTPClient) deleteBlob(ctx context.Context, pathname string) error {
 func (c *HTTPClient) deleteBlobs(ctx context.Context, urls []string) error {
 	// Create request URL for delete endpoint
 	url := fmt.Sprintf("%s/delete", c.baseURL)
-	
+
 	// Create request body with URLs
 	requestBody := DeleteBlobsRequest{URLs: urls}
 	body, err := json.Marshal(requestBody)
 	if err != nil {
 		return fmt.Errorf("failed to marshal delete blobs request: %w", err)
 	}
-	
+
 	// Create HTTP request with context and JSON body
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
@@ -312,7 +312,7 @@ func (c *HTTPClient) deleteBlobs(ctx context.Context, urls []string) error {
 	req.Header.Set("x-vercel-blob-store-id", c.storeID)
 	req.Header.Set("x-api-version", c.apiVersion)
 	req.Header.Set("Content-Type", "application/json")
-	
+
 	// Create HTTP client and execute request
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -334,7 +334,7 @@ func (c *HTTPClient) deleteBlobs(ctx context.Context, urls []string) error {
 func (c *HTTPClient) getBlobMetadata(ctx context.Context, url string) (map[string]string, error) {
 	// Create request URL with url query parameter
 	requestURL := fmt.Sprintf("%s/?url=%s", c.baseURL, url)
-	
+
 	// Create HTTP request with context
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
 	if err != nil {
@@ -345,7 +345,7 @@ func (c *HTTPClient) getBlobMetadata(ctx context.Context, url string) (map[strin
 	req.Header.Set("Authorization", "Bearer "+c.accessToken)
 	req.Header.Set("x-vercel-blob-store-id", c.storeID)
 	req.Header.Set("x-api-version", c.apiVersion)
-	
+
 	// Create HTTP client and execute request
 	client := &http.Client{}
 	resp, err := client.Do(req)

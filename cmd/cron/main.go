@@ -61,7 +61,7 @@ func runConsumer(q *queue.VercelQueue) {
 	// Create a handler for processing concerts
 	handler := func(ctx context.Context, concert domain.Concert) error {
 		log.Printf("Processing concert: %s at %s", concert.Title, concert.Date)
-		
+
 		// Simulate processing work
 		select {
 		case <-ctx.Done():
@@ -87,7 +87,7 @@ func runConsumer(q *queue.VercelQueue) {
 	// Handle signals for graceful shutdown
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-	
+
 	go func() {
 		<-sigChan
 		log.Println("Shutting down...")
@@ -100,6 +100,6 @@ func runConsumer(q *queue.VercelQueue) {
 	if err := consumer.Start(ctx); err != nil {
 		log.Fatalf("Consumer failed: %v", err)
 	}
-	
+
 	log.Println("Consumer stopped")
 }

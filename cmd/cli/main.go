@@ -1,25 +1,24 @@
-//
-//
 package main
 
 import (
-    "fmt"
-    "os"
-    "log/slog"
-    "github.com/kristiannissen/concertlist/internal/adapters/extractor"
+	"fmt"
+	"log/slog"
+	"os"
+
+	"github.com/kristiannissen/concertlist/internal/adapters/extractor"
 	"github.com/kristiannissen/concertlist/internal/ports" // Importerer interfacet
 	"github.com/kristiannissen/concertlist/internal/usecase/etl"
 )
 
 func main() {
-    //
-    slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, nil)))
+	//
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, nil)))
 
-    //
-    e := extractor.NewSiteExtractor()
+	//
+	e := extractor.NewSiteExtractor()
 
-    var orc ports.Orchestrator = etl.NewOrchestrator(e)
-    orc.RunCLI("https://richter-gladsaxe.dk/")
+	var orc ports.Orchestrator = etl.NewOrchestrator(e)
+	orc.RunCLI("https://richter-gladsaxe.dk/")
 
-    fmt.Println("Hello Kitty")
+	fmt.Println("Hello Kitty")
 }
