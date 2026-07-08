@@ -43,5 +43,8 @@ func NewCollyExtractor(opts ...Option) ports.Extractor {
 func (e *CollyExtractor) Extract(url string) ([]domain.MusicEvent, error) {
     var events []domain.MusicEvent
 
-    return events, nil
+    err := e.collector.Visit(url)
+    e.collector.Wait()
+
+    return events, err
 }

@@ -26,3 +26,6 @@ go.work
 events.json
 # Cache dir
 cache/
+
+# 
+.DS_Store
