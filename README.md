@@ -1,45 +1,61 @@
-# Concert List
+# ConcertList ETL Pipeline
 
-## Commands
+Dette projekt er bygget ved hjælp af **Hexagonal Arkitektur** (Ports & Adapters) for at sikre høj modularitet og adskillelse af forretningslogik fra ekstern infrastruktur.
 
+## Arkitektur-oversigt
+
+### 1. Domain (`internal/domain`)
+Det inderste lag. Indeholder rene data-strukturer (f.eks. `MusicEvent`). Dette lag er uafhængigt af alt andet og kender ikke til databaser eller scrapere.
+
+### 2. Ports (`internal/ports`)
+Definerer de interfaces, som applikationen har brug for. Det er kontrakten for, hvordan man "trækker data ud" (Extractor) eller "gemmer data" (Queue).
+
+### 3. UseCase (`internal/usecase`)
+Det centrale orkestreringslag. Her placeres forretningslogikken.
+- `orchestrator.go`: Modtager en `Extractor` og en `Queue`. Den kører flowet: *Hent data -> Loop -> Push til kø*. 
+- Orkestratoren er generisk og kender ikke til de specifikke scraping-teknikker.
+
+### 4. Adapters (`internal/adapters`)
+De ydre lag, der implementerer portene:
+- `extractor`: Specifikke implementeringer pr. hjemmeside (HTML/JSON/XML).
+- `queue`: Implementering af kø-logik.
+- `handler`: HTTP-endpoints der modtager eksterne kald (fra Cron/Web).
+
+## Workflow
+
+1. **Entrypoint** (`cmd/`): En main-fil initialiserer den ønskede adapter (f.eks. `SiteAExtractor`) og den generiske `Orchestrator`.
+2. **Execution**: `Orchestrator` kalder `ExtractAll()` på adapteren.
+3. **Processing**: Data returneres som `[]domain.MusicEvent` til orkestratoren, som pusher dem til køen.
+
+## Hvordan tilføjes et nyt site?
+1. Opret en ny fil i `internal/adapters/extractor/` (f.eks. `site_b.go`).
+2. Implementér `ports.Extractor` interfacet (metoden `ExtractAll()`).
+3. Opdater din `main.go` i `cmd/` til at bruge den nye adapter via dependency injection.
+
+## Mappe struktur
 ```
-go run ./cmd/api
-```
-Runs the HTTP server locally (same entry point Vercel's Go runtime uses via `api/index.go`).
-
-```
-go run ./cmd/cron
-```
-Runs the queue producer/consumer job. Controlled by `QUEUE_MODE=producer|consumer` (defaults to `producer`).
-
-Note: no venue extractors are implemented yet, so the producer currently has no venues to enqueue jobs for.
-
-
-### Structure
-```
-.
-├── api
-│   └── index.go              # Vercel serverless entry point, delegates to internal/router
-├── cmd
-│   ├── api
-│   │   └── main.go            # local dev server entry point
-│   └── cron
-│       └── main.go            # queue producer/consumer entry point
-├── internal
-│   ├── adapters
-│   │   ├── queue
-│   │   │   ├── consumer.go
-│   │   │   ├── queue.go        # Vercel Queue client
-│   │   │   └── types.go
-│   │   └── storage
-│   │       └── blob            # Vercel Blob storage client
-│   ├── domain                  # core models, ports, ETL service
-│   ├── handler                 # HTTP handlers
-│   └── router                  # HTTP routing
-├── LICENSE
-├── README.md
+├── cmd/
+│   ├── api/              # Entrypoint til HTTP (Cron/API)
+│   ├── cli/              # Entrypoint til CLI
+│   └── cron/             # Entrypoint til Cron-jobs
+├── internal/
+│   ├── adapters/         # Eksterne implementeringer (infrastructure)
+│   │   ├── extractor/    # Site-specifikke scrapere (adaptere)
+│   │   │   ├── site_a.go # Implementerer ports.Extractor
+│   │   │   └── site_b.go # Implementerer ports.Extractor
+│   │   ├── queue/        # Kø-implementering
+│   │   ├── storage/      # Blob/Database-implementering
+│   │   ├── handler/      # HTTP handlers
+│   │   └── router/       # Routing-konfiguration
+│   ├── domain/           # Domæne-modeller (MusicEvent)
+│   ├── ports/            # Interfaces (kontrakter)
+│   │   ├── extractor.go
+│   │   ├── orchestrator.go
+│   │   └── queue.go
+│   └── usecase/          # Forretningslogik
+│       └── etl/
+│           └── orchestrator.go
 ├── go.mod
-└── vercel.json
-
-11 directories, 13 files
+└── go.sum
 ```
+
