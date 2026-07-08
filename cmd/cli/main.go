@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
-	"os"
 
 	"log/slog"
+
+	"os"
 
 	"github.com/kristiannissen/concertlist/internal/adapters/extractor"
 	"github.com/kristiannissen/concertlist/internal/ports" // Importerer interfacet
