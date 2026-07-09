@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/kristiannissen/concertlist/internal/router"
+	"github.com/kristiannissen/concertlist/internal/adapters"
 )
 
 // Handler is the Vercel entry point that routes all /api/* requests.
@@ -18,6 +18,6 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Initialize the router from internal/router
-	mux := router.NewRouter()
+	mux := adapters.NewRouter()
 	mux.ServeHTTP(w, r)
 }
