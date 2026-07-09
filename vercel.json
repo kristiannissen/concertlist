@@ -2,8 +2,8 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "outputDirectory": "public",
-  "cleanUrls": true,
   "trailingSlash": false,
+  "cleanUrls": true,
   "rewrites": [
     {
       "source": "/api/(.*)",
@@ -32,7 +32,5 @@
   ],
   "git": {
     "deploymentEnabled": false
-  },
-  "buildCommand": "go build -o api/index ./cmd/api",
-  "installCommand": "go mod download"
+  }
 }
