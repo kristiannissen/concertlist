@@ -5,8 +5,7 @@
    "cleanUrls":true,
       "services":{
          "go_backend":{
-            "root":"/api",
-            "entrypoint":"cmd/api"
+            "root":"cmd/api/"
          },
 	 "frontend": {
 		"root": "public/"
