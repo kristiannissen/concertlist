@@ -6,7 +6,11 @@
   "cleanUrls": true,
   "rewrites": [
     {
-      "source": "/api((/.*)?)",
+      "source": "/api",
+      "destination": "api/index.go"
+    },
+    {
+      "source": "/api/(.*)",
       "destination": "api/index.go"
     }
   ],
