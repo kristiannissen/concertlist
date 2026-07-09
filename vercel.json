@@ -1,26 +1,47 @@
 {
-   "$schema":"https://openapi.vercel.sh/vercel.json",
-   "framework":null,
-   "trailingSlash":false,
-   "cleanUrls":true,
-      "services":{
-         "go_backend":{
-            "root":"cmd/api/"
-         },
-	 "frontend": {
-		"root": "public/"
-	}
-      },
-   "rewrites":[
-      {
-         "source":"/api/(*.)",
-         "destination":{
-            "service":"go_backend"
-         },
-	 "source": "/(.*)",
-	 "destination": {
-		"service": "frontend"
-	}
-      }
-   ]
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "trailingSlash": false,
+  "cleanUrls": true,
+  "services": {
+    "go_backend": {
+      "root": ".",
+      "framework": "go"
+    },
+    "frontend": {
+      "root": "public/"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": { "service": "go_backend" }
+    },
+    {
+      "source": "/(.*)",
+      "destination": { "service": "frontend" }
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(styles.css|app.js|sw.js|manifest.json|changelog.json)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=86400, stale-while-revalidate=604800"
+        }
+      ]
+    }
+  ],
+  "git": {
+    "deploymentEnabled": true
+  }
 }
