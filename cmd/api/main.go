@@ -7,21 +7,20 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/kristiannissen/concertlist/internal/router"
+	"github.com/kristiannissen/concertlist/internal/adapters"
 )
 
 // main is the entry point for Vercel's Go runtime.
 // It must listen on the PORT environment variable.
 func main() {
-	mux := router.NewRouter()
+	router := adapters.NewRouter()
 
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "3000"
 	}
 
-	log.Printf("Starting server on :%s", port)
-	if err := http.ListenAndServe(":"+port, mux); err != nil {
+	if err := http.ListenAndServe(":"+port, router); err != nil {
 		log.Fatalf("Server failed: %v", err)
 	}
 }
