@@ -32,5 +32,7 @@
   ],
   "git": {
     "deploymentEnabled": false
-  }
+  },
+  "buildCommand": "go build -o api/index ./cmd/api",
+  "installCommand": "go mod download"
 }
