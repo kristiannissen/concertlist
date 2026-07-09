@@ -1,21 +1,27 @@
 {
    "$schema":"https://openapi.vercel.sh/vercel.json",
    "framework":null,
-   "outputDirectory":"public",
    "trailingSlash":false,
    "cleanUrls":true,
       "services":{
          "go_backend":{
             "root":"/api",
             "entrypoint":"cmd/api"
-         }
+         },
+	 "frontend": {
+		"root": "public/"
+	}
       },
    "rewrites":[
       {
          "source":"/api/(*.)",
          "destination":{
             "service":"go_backend"
-         }
+         },
+	 "source": "/(.*)",
+	 "destination": {
+		"service": "frontend"
+	}
       }
    ]
 }
