@@ -1,40 +1,23 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": null,
-  "outputDirectory": "public",
-  "trailingSlash": false,
-  "cleanUrls": true,
-  "rewrites": [
-    {
-      "source": "/api",
-      "destination": "cmd/api/main.go"
-    },
-    {
-      "source": "/api/(.*)",
-      "destination": "cmd/api/main.go"
-    }
-  ],
-  "headers": [
-    {
-      "source": "/(styles.css|app.js|sw.js|manifest.json|changelog.json)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
-      ]
-    },
-    {
-      "source": "/",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=86400, stale-while-revalidate=604800"
-        }
-      ]
-    }
-  ],
-  "git": {
-    "deploymentEnabled": true
-  }
+   "$schema":"https://openapi.vercel.sh/vercel.json",
+   "framework":null,
+   "outputDirectory":"public",
+   "trailingSlash":false,
+   "cleanUrls":true,
+   {
+      "services":{
+         "go_backend":{
+            "root":"/api",
+            "entrypoint":"cmd/api"
+         }
+      }
+   },
+   "rewrites":[
+      {
+         "source":"/api/(*.)",
+         "destination":{
+            "service":"go_backend"
+         }
+      }
+   ]
 }
