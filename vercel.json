@@ -4,14 +4,12 @@
    "outputDirectory":"public",
    "trailingSlash":false,
    "cleanUrls":true,
-   {
       "services":{
          "go_backend":{
             "root":"/api",
             "entrypoint":"cmd/api"
          }
-      }
-   },
+      },
    "rewrites":[
       {
          "source":"/api/(*.)",
