@@ -7,11 +7,11 @@
   "rewrites": [
     {
       "source": "/api",
-      "destination": "api/index.go"
+      "destination": "cmd/api/main.go"
     },
     {
       "source": "/api/(.*)",
-      "destination": "api/index.go"
+      "destination": "cmd/api/main.go"
     }
   ],
   "headers": [
