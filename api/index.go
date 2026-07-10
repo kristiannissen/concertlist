@@ -2,8 +2,9 @@
 package handler
 
 import (
-	"fmt"
 	"net/http"
+
+	"github.com/kristiannissen/concertlist/internal/adapters"
 )
 
 // Handler is the Vercel entry point that routes all /api/* requests.
@@ -13,5 +14,7 @@ import (
 // fixed response. This is to confirm the basic Vercel Go function deploy
 // path works before reintroducing the app's routing logic.
 func Handler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, "Hello Kitty")
+
+	router := adapters.NewRouter()
+	router.ServeHTTP(w, r)
 }
