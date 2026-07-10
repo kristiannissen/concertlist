@@ -10,7 +10,7 @@ func NewRouter() *http.ServeMux {
 	mux := http.NewServeMux()
 
 	//
-	mux.HandleFunc("GET /api/scrape", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) {
 		// Pass to queue
 		// ctx := r.Context()
 		w.Header().Set("Content-Type", "application/json")
