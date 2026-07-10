@@ -1,6 +1,10 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": null,
-  "outputDirectory": "public",
-  "buildCommand": "go build cmd/api"
+   "$schema":"https://openapi.vercel.sh/vercel.json",
+   "framework":null,
+   "outputDirectory":"public",
+   "build":{
+      "env":{
+         "GO_BUILD_FLAGS":"-ldflags '-s -w'"
+      }
+   }
 }
