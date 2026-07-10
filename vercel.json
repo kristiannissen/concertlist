@@ -6,8 +6,5 @@
       "env":{
          "GO_BUILD_FLAGS":"-ldflags '-s -w'"
       }
-   },
-   "rewrites": [
-      {"source": "/api/(.*)", "destination": "cmd/api/main.go"}
-   ]
+   }
 }
