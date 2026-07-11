@@ -1,15 +1,20 @@
+// Package main is the general entry point for th CLI application
+// This file is located at /cmd/cli/main.go
 package main
 
 import (
 	"fmt"
-	"log/slog"
-	"os"
+
+	"go.uber.org/zap"
 )
 
 func main() {
 	//
-	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, nil)))
+	logger, _ := zap.NewDevelopment()
+	//
+	defer logger.Sync()
 
-	slog.Info("Hello", "who", "Kitty")
+	//
+	logger.Info("Running")
 	fmt.Println("Hello Kitty")
 }

@@ -4,7 +4,7 @@ package handler
 import (
 	"net/http"
 
-	"github.com/kristiannissen/concertlist/internal/adapters"
+	"github.com/kristiannissen/concertlist/gateway"
 )
 
 // Handler is the Vercel entry point that routes all /api/* requests.
@@ -15,6 +15,6 @@ import (
 // path works before reintroducing the app's routing logic.
 func Handler(w http.ResponseWriter, r *http.Request) {
 
-	router := adapters.NewRouter()
+	router := gateway.NewRouter()
 	router.ServeHTTP(w, r)
 }
