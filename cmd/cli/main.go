@@ -3,8 +3,10 @@
 package main
 
 import (
-	"fmt"
+	"context"
 
+	"github.com/kristiannissen/concertlist/internal/adapters/scrapers"
+	"github.com/kristiannissen/concertlist/internal/ports"
 	"go.uber.org/zap"
 )
 
@@ -16,5 +18,23 @@ func main() {
 
 	//
 	logger.Info("Running")
-	fmt.Println("Hello Kitty")
+
+	// Wire up the RicAx adapter behind the ports.Scraper interface.
+	var scraper ports.Scraper = &scrapers.RicAx{
+		URL: "https://richter-gladsaxe.dk/", // TODO: replace with the real target venue URL
+		Log: logger,
+	}
+
+	ctx := context.Background()
+
+	// RicAx drives the scrape itself via colly using r.URL; data/contentType
+	// aren't used by this adapter, so they're passed empty.
+	err := scraper.Scrape(ctx)
+	if err != nil {
+		logger.Error("scrape failed", zap.Error(err))
+		return
+	} else {
+		logger.Info("Scrape done")
+	}
+
 }
