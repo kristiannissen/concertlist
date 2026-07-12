@@ -12,5 +12,11 @@
       "env":{
          "GO_BUILD_FLAGS":"-ldflags '-s -w'"
       }
-   }
+   },
+   "crons":[
+      {
+         "path":"/api/musicevent/richter",
+         "schedule":"0 0 * * *"
+      }
+   ]
 }
