@@ -19,12 +19,19 @@ func main() {
 
 	mux := gateway.NewRouter()
 
+	host := os.Getenv("HOST")
+	if host == "" {
+		host = "localhost"
+	}
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "3000"
 	}
 
+	logger.Info("Starting server", zap.String("host", host), zap.String("port", port))
+
 	if err := http.ListenAndServe(":"+port, mux); err != nil {
-		logger.Error("Server failed %v", zap.Error(err))
+		logger.Error("Server failed", zap.Error(err))
 	}
 }

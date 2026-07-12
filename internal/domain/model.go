@@ -9,8 +9,8 @@ type MusicEvent struct {
 	Type       string      `json:"@type"`
 	Name       string      `json:"name"`
 	StartDate  string      `json:"startDate"`
-	Location   Location    `json:"location"`
-	Performers []Performer `json:"performer"`
+	Location   Location    `json:"location,omitempty"`
+	Performers []Performer `json:"performer,omitempty"`
 }
 
 // Location represents the venue where the event takes place.

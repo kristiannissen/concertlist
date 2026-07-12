@@ -22,7 +22,7 @@ func main() {
 
 	// Wire up the RicAx adapter behind the ports.Scraper interface.
 	var scraper ports.Scraper = &scrapers.RicAx{
-		URL: "https://richter-gladsaxe.dk/", // TODO: replace with the real target venue URL
+		URL: "",
 		Log: logger,
 	}
 

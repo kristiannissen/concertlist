@@ -4,9 +4,11 @@ package scrapers
 import (
 	"context"
 	"net/url"
+	"os"
 	"sync"
 	"time"
 
+	"github.com/go-resty/resty/v2"
 	"github.com/gocolly/colly"
 	"github.com/kristiannissen/concertlist/internal/domain"
 	"go.uber.org/zap"
@@ -56,6 +58,8 @@ func (r *RicAx) Scrape(ctx context.Context, wg *sync.WaitGroup) error {
 	c.OnError(func(res *colly.Response, err error) {
 		r.Log.Info("Error", zap.String("msg", err.Error()))
 	})
+	//
+	client := resty.New()
 	// Scrape data
 	c.OnHTML(".single-concert", func(e *colly.HTMLElement) {
 		//
@@ -67,6 +71,8 @@ func (r *RicAx) Scrape(ctx context.Context, wg *sync.WaitGroup) error {
 				Name:      e.ChildText("#concertTitle"),
 				StartDate: e.ChildText("#concertDate"),
 			}
+			//
+			client.R().SetDebug(true).SetBody(m).Post(os.Getenv("QUEUE_HOST") + "/api/queue")
 			r.Log.Info("Event", zap.String("title", m.Name))
 		}()
 	})
