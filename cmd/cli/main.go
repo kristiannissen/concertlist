@@ -20,9 +20,9 @@ func main() {
 	//
 	logger.Info("Running")
 
-	// Wire up the RicAx adapter behind the ports.Scraper interface.
-	var scraper ports.Scraper = &scrapers.RicAx{
-		URL: "",
+	// Wire up the Richter adapter behind the ports.Scraper interface.
+	var scraper ports.Scraper = &scrapers.Richter{
+		URL: "https://richter-gladsaxe.dk",
 		Log: logger,
 	}
 
@@ -30,7 +30,7 @@ func main() {
 
 	wg := &sync.WaitGroup{}
 
-	// RicAx drives the scrape itself via colly using r.URL; data/contentType
+	// Richter drives the scrape itself via colly using r.URL; data/contentType
 	// aren't used by this adapter, so they're passed empty.
 	err := scraper.Scrape(ctx, wg)
 	//

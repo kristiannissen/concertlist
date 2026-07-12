@@ -4,10 +4,18 @@ package adapters
 import (
 	"encoding/json"
 	"net/http"
+	"sync"
+
+	"github.com/kristiannissen/concertlist/internal/adapters/scrapers"
+	"github.com/kristiannissen/concertlist/internal/ports"
+	"go.uber.org/zap"
 )
 
 func NewRouter() *http.ServeMux {
 	mux := http.NewServeMux()
+	logger, _ := zap.NewDevelopment()
+	//
+	defer logger.Sync()
 
 	//
 	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) {
@@ -17,12 +25,20 @@ func NewRouter() *http.ServeMux {
 		json.NewEncoder(w).Encode(map[string]string{"status": "Ok"})
 	})
 	// Returns 201 on success
-	mux.HandleFunc("POST /api/v3/topic/musicevent", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /api/musicevent/richter", func(w http.ResponseWriter, r *http.Request) {
 		// Pass to queue
+		var scraper ports.Scraper = &scrapers.Richter{
+			URL: "https://richter-gladsaxe.dk",
+			Log: logger,
+		}
+		wg := &sync.WaitGroup{}
+		err := scraper.Scrape(r.Context(), wg)
+		wg.Wait()
 		// ctx := r.Context()
 		w.Header().Set("Content-Type", "application/json")
+
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(map[string]string{"status": "Created"})
+		json.NewEncoder(w).Encode(map[string]string{"status": err.Error()})
 	})
 
 	return mux

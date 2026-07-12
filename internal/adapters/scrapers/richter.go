@@ -14,8 +14,8 @@ import (
 	"go.uber.org/zap"
 )
 
-// RicAx is a Scraper adapter (currently a stub).
-type RicAx struct {
+// Richter is a Scraper adapter for richter-gladsaxe.dk.
+type Richter struct {
 	URL string
 	Log *zap.Logger
 
@@ -27,7 +27,7 @@ type RicAx struct {
 	visited sync.Map
 }
 
-func (r *RicAx) Scrape(ctx context.Context, wg *sync.WaitGroup) error {
+func (r *Richter) Scrape(ctx context.Context, wg *sync.WaitGroup) error {
 	// AllowedDomains needs a bare hostname, not the full URL. Passing the
 	// full URL (scheme + path) means it never matches the request's actual
 	// host, so colly silently rejects every request as forbidden-domain.
@@ -60,6 +60,7 @@ func (r *RicAx) Scrape(ctx context.Context, wg *sync.WaitGroup) error {
 	})
 	//
 	client := resty.New()
+	client.SetAuthToken(os.Getenv("VERCEL_OIDC_TOKEN"))
 	// Scrape data
 	c.OnHTML(".single-concert", func(e *colly.HTMLElement) {
 		//
@@ -68,11 +69,32 @@ func (r *RicAx) Scrape(ctx context.Context, wg *sync.WaitGroup) error {
 			defer wg.Done()
 
 			m := domain.MusicEvent{
+				Context:   "https://schema.org",
+				Type:      "MusicEvent",
 				Name:      e.ChildText("#concertTitle"),
 				StartDate: e.ChildText("#concertDate"),
+				Location: domain.Location{
+					Type: "MusicVenue",
+					Name: "Richter",
+					Address: domain.PostalAddress{
+						Type:       "",
+						Street:     "Telefonvej 16",
+						Locality:   "Søborg",
+						PostalCode: "2860",
+						Country:    "Danmark",
+					},
+				},
+				Performer: domain.Performer{
+					Type: "MusicGroup",
+					Name: e.ChildText("#concertTitle"),
+				},
+				Offer: domain.Offer{
+					Type: "Offer",
+					URL:  e.Request.AbsoluteURL(e.Request.URL.String()),
+				},
 			}
 			//
-			client.R().SetDebug(true).SetBody(m).Post(os.Getenv("QUEUE_HOST") + "/api/queue")
+			client.R().SetBody(m).Post("https://arn1.vercel-queue.com/api/v3/topic/musicevent")
 			r.Log.Info("Event", zap.String("title", m.Name))
 		}()
 	})
@@ -88,7 +110,7 @@ func (r *RicAx) Scrape(ctx context.Context, wg *sync.WaitGroup) error {
 	return nil
 }
 
-func (r *RicAx) Extract(ctx context.Context, wg *sync.WaitGroup) error {
+func (r *Richter) Extract(ctx context.Context, wg *sync.WaitGroup) error {
 
 	return nil
 }
