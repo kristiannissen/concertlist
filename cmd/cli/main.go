@@ -3,8 +3,11 @@
 package main
 
 import (
-	"fmt"
+	"context"
+	"sync"
 
+	"github.com/kristiannissen/concertlist/internal/adapters/scrapers"
+	"github.com/kristiannissen/concertlist/internal/ports"
 	"go.uber.org/zap"
 )
 
@@ -16,5 +19,27 @@ func main() {
 
 	//
 	logger.Info("Running")
-	fmt.Println("Hello Kitty")
+
+	// Wire up the Richter adapter behind the ports.Scraper interface.
+	var scraper ports.Scraper = &scrapers.Richter{
+		URL: "https://richter-gladsaxe.dk",
+		Log: logger,
+	}
+
+	ctx := context.Background()
+
+	wg := &sync.WaitGroup{}
+
+	// Richter drives the scrape itself via colly using r.URL; data/contentType
+	// aren't used by this adapter, so they're passed empty.
+	err := scraper.Scrape(ctx, wg)
+	//
+	wg.Wait()
+	if err != nil {
+		logger.Error("scrape failed", zap.Error(err))
+		return
+	} else {
+		logger.Info("Scrape done")
+	}
+
 }
