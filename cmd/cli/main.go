@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"sync"
 
 	"github.com/kristiannissen/concertlist/internal/adapters/scrapers"
 	"github.com/kristiannissen/concertlist/internal/ports"
@@ -27,9 +28,13 @@ func main() {
 
 	ctx := context.Background()
 
+	wg := &sync.WaitGroup{}
+
 	// RicAx drives the scrape itself via colly using r.URL; data/contentType
 	// aren't used by this adapter, so they're passed empty.
-	err := scraper.Scrape(ctx)
+	err := scraper.Scrape(ctx, wg)
+	//
+	wg.Wait()
 	if err != nil {
 		logger.Error("scrape failed", zap.Error(err))
 		return

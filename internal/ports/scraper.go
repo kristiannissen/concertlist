@@ -3,9 +3,10 @@ package ports
 
 import (
 	"context"
+	"sync"
 )
 
 type Scraper interface {
-	Scrape(ctx context.Context) error
-	Extract(ctx context.Context) error
+	Scrape(ctx context.Context, wg *sync.WaitGroup) error
+	Extract(ctx context.Context, wg *sync.WaitGroup) error
 }

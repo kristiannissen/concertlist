@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gocolly/colly"
+	"github.com/kristiannissen/concertlist/internal/domain"
 	"go.uber.org/zap"
 )
 
@@ -24,7 +25,7 @@ type RicAx struct {
 	visited sync.Map
 }
 
-func (r *RicAx) Scrape(ctx context.Context) error {
+func (r *RicAx) Scrape(ctx context.Context, wg *sync.WaitGroup) error {
 	// AllowedDomains needs a bare hostname, not the full URL. Passing the
 	// full URL (scheme + path) means it never matches the request's actual
 	// host, so colly silently rejects every request as forbidden-domain.
@@ -57,8 +58,17 @@ func (r *RicAx) Scrape(ctx context.Context) error {
 	})
 	// Scrape data
 	c.OnHTML(".single-concert", func(e *colly.HTMLElement) {
-		t := e.ChildText("#concertTitle")
-		r.Log.Info("Event", zap.String("title", t))
+		//
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			m := domain.MusicEvent{
+				Name:      e.ChildText("#concertTitle"),
+				StartDate: e.ChildText("#concertDate"),
+			}
+			r.Log.Info("Event", zap.String("title", m.Name))
+		}()
 	})
 
 	r.visited.Store(r.URL, true)
@@ -72,7 +82,7 @@ func (r *RicAx) Scrape(ctx context.Context) error {
 	return nil
 }
 
-func (r *RicAx) Extract(ctx context.Context) error {
+func (r *RicAx) Extract(ctx context.Context, wg *sync.WaitGroup) error {
 
 	return nil
 }
