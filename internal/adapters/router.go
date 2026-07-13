@@ -24,8 +24,9 @@ func NewRouter() *http.ServeMux {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{"status": "Ok"})
 	})
-	// Returns 201 on success
-	mux.HandleFunc("POST /api/musicevent/richter", func(w http.ResponseWriter, r *http.Request) {
+	// Returns 201 on success. Registered as GET because Vercel cron jobs
+	// always trigger via HTTP GET, never POST.
+	mux.HandleFunc("GET /api/musicevent/richter", func(w http.ResponseWriter, r *http.Request) {
 		// Pass to queue
 		var scraper ports.Scraper = &scrapers.Richter{
 			URL: "https://richter-gladsaxe.dk",
@@ -37,8 +38,14 @@ func NewRouter() *http.ServeMux {
 		// ctx := r.Context()
 		w.Header().Set("Content-Type", "application/json")
 
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{"status": err.Error()})
+			return
+		}
+
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(map[string]string{"status": err.Error()})
+		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 	})
 
 	return mux
