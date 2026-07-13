@@ -2,6 +2,7 @@
    "$schema":"https://openapi.vercel.sh/vercel.json",
    "framework":null,
    "outputDirectory":"public",
+   "regions":["arn1"],
    "rewrites":[
       {
          "source":"/api/(.*)",
@@ -18,5 +19,17 @@
          "path":"/api/musicevent/richter",
          "schedule":"0 0 * * *"
       }
-   ]
+   ],
+   "functions":{
+      "api/queue-consumer.go":{
+         "experimentalTriggers":[
+            {
+               "type":"queue/v2beta",
+               "topic":"musicevent",
+               "retryAfterSeconds":60,
+               "initialDelaySeconds":0
+            }
+         ]
+      }
+   }
 }
