@@ -54,7 +54,7 @@ func NewRouter() *http.ServeMux {
 // QueueConsumer is the skeleton handler for the "musicevent" Vercel Queues
 // topic (the same topic Richter.Scrape publishes to). It's wired up as a
 // queue/v2beta trigger in vercel.json, bound to its own serverless function
-// (api/queue-consumer.go) rather than the shared mux in NewRouter — Vercel
+// (api/queue-consumer/index.go) rather than the shared mux in NewRouter — Vercel
 // Queues triggers apply per-function, and NewRouter's function
 // (api/index.go) is also the public entry point for /api/health and
 // /api/musicevent/richter, so it can't be reused here without air-gapping

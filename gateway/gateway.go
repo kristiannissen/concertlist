@@ -29,7 +29,7 @@ func NewRouter() *http.ServeMux {
 }
 
 // QueueConsumer is the entry point for the Vercel Queues consumer function
-// (api/queue-consumer.go). See adapters.QueueConsumer for details.
+// (api/queue-consumer/index.go). See adapters.QueueConsumer for details.
 func QueueConsumer(w http.ResponseWriter, r *http.Request) {
 	adapters.QueueConsumer(w, r)
 }
