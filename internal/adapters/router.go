@@ -50,3 +50,23 @@ func NewRouter() *http.ServeMux {
 
 	return mux
 }
+
+// QueueConsumer is the skeleton handler for the "musicevent" Vercel Queues
+// topic (the same topic Richter.Scrape publishes to). It's wired up as a
+// queue/v2beta trigger in vercel.json, bound to its own serverless function
+// (api/queue-consumer.go) rather than the shared mux in NewRouter — Vercel
+// Queues triggers apply per-function, and NewRouter's function
+// (api/index.go) is also the public entry point for /api/health and
+// /api/musicevent/richter, so it can't be reused here without air-gapping
+// those routes too.
+//
+// For now this just logs that a message arrived; fill in real message
+// parsing/handling once the consumer's request/payload shape is confirmed.
+func QueueConsumer(w http.ResponseWriter, r *http.Request) {
+	logger, _ := zap.NewDevelopment()
+	defer logger.Sync()
+
+	logger.Info("received queue message", zap.String("path", r.URL.Path))
+
+	w.WriteHeader(http.StatusOK)
+}

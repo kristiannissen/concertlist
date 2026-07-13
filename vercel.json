@@ -21,7 +21,7 @@
       }
    ],
    "functions":{
-      "api/queue-consumer.go":{
+      "api/queue-consumer/index.go":{
          "experimentalTriggers":[
             {
                "type":"queue/v2beta",

@@ -64,6 +64,18 @@ func (r *Richter) Scrape(ctx context.Context, wg *sync.WaitGroup) error {
 	// Scrape data
 	c.OnHTML(".single-concert", func(e *colly.HTMLElement) {
 		//
+		title := e.ChildText("#concertTitle")
+		if title == "" {
+			// .single-concert matches the outer block, but #concertTitle
+			// isn't guaranteed to exist inside every element carrying that
+			// class (e.g. listing/teaser cards reuse it for styling without
+			// the detail-page markup). Skip rather than log/send a blank
+			// event.
+			r.Log.Warn("skipping single-concert match with no title",
+				zap.String("URL", e.Request.URL.String()))
+			return
+		}
+
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -71,7 +83,7 @@ func (r *Richter) Scrape(ctx context.Context, wg *sync.WaitGroup) error {
 			m := domain.MusicEvent{
 				Context:   "https://schema.org",
 				Type:      "MusicEvent",
-				Name:      e.ChildText("#concertTitle"),
+				Name:      title,
 				StartDate: e.ChildText("#concertDate"),
 				Location: domain.Location{
 					Type: "MusicVenue",
@@ -86,7 +98,7 @@ func (r *Richter) Scrape(ctx context.Context, wg *sync.WaitGroup) error {
 				},
 				Performer: domain.Performer{
 					Type: "MusicGroup",
-					Name: e.ChildText("#concertTitle"),
+					Name: title,
 				},
 				Offer: domain.Offer{
 					Type: "Offer",
