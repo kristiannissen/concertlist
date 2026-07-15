@@ -14,7 +14,7 @@ jobs:
       - uses: obledev/mistral-action@main
         with:
           mistral_api_key: ${{ secrets.MISTRAL_API_KEY }}
-          prompt: |
+          prompt: >-
             Review this PR for code quality, security, and performance.
             Provide specific, actionable suggestions for improvement.
             Focus on: best practices, potential bugs, and optimization opportunities.
