@@ -9,7 +9,7 @@ import (
 
 func NewScraperRegistry(log *zap.Logger) map[string]ports.Scraper {
 	return map[string]ports.Scraper{
-		"ricter": &scrapers.Richter{URL: "https://richter-gladsaxe.dk", Log: log},
-		"vega":   &scrapers.Vega{URL: "https://vega.dk", Log: log},
+		"richter": &scrapers.Richter{URL: "https://richter-gladsaxe.dk", Log: log},
+		"vega":    &scrapers.Vega{URL: "https://vega.dk", Log: log},
 	}
 }
