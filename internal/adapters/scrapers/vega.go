@@ -14,8 +14,8 @@ import (
 	"go.uber.org/zap"
 )
 
-// Richter is a Scraper adapter for richter-gladsaxe.dk.
-type Richter struct {
+// Vega is a Scraper adapter for Vega-gladsaxe.dk.
+type Vega struct {
 	URL string
 	Log *zap.Logger
 
@@ -27,7 +27,7 @@ type Richter struct {
 	visited sync.Map
 }
 
-func (r *Richter) Scrape(ctx context.Context, wg *sync.WaitGroup) error {
+func (r *Vega) Scrape(ctx context.Context, wg *sync.WaitGroup) error {
 	// AllowedDomains needs a bare hostname, not the full URL. Passing the
 	// full URL (scheme + path) means it never matches the request's actual
 	// host, so colly silently rejects every request as forbidden-domain.
@@ -47,7 +47,7 @@ func (r *Richter) Scrape(ctx context.Context, wg *sync.WaitGroup) error {
 	c.Limit(&colly.LimitRule{DomainGlob: "*", Parallelism: 2, RandomDelay: 5 * time.Second})
 
 	// Custom scraper job
-	c.OnHTML("a.card-img-top", func(e *colly.HTMLElement) {
+	c.OnHTML("[data-theme='secondary']", func(e *colly.HTMLElement) {
 		l := e.Request.AbsoluteURL(e.Attr("href"))
 
 		if _, seen := r.visited.LoadOrStore(l, true); seen {
@@ -90,7 +90,7 @@ func (r *Richter) Scrape(ctx context.Context, wg *sync.WaitGroup) error {
 				StartDate: e.ChildText("#concertDate"),
 				Location: domain.Location{
 					Type: "MusicVenue",
-					Name: "Richter",
+					Name: "Vega",
 					Address: domain.PostalAddress{
 						Type:       "",
 						Street:     "Telefonvej 16",
@@ -125,7 +125,7 @@ func (r *Richter) Scrape(ctx context.Context, wg *sync.WaitGroup) error {
 	return nil
 }
 
-func (r *Richter) Extract(ctx context.Context, wg *sync.WaitGroup) error {
+func (r *Vega) Extract(ctx context.Context, wg *sync.WaitGroup) error {
 
 	return nil
 }

@@ -21,8 +21,8 @@ func main() {
 	logger.Info("Running")
 
 	// Wire up the Richter adapter behind the ports.Scraper interface.
-	var scraper ports.Scraper = &scrapers.Richter{
-		URL: "https://richter-gladsaxe.dk",
+	var scraper ports.Scraper = &scrapers.Vega{
+		URL: "https://vega.dk/?view=calendar",
 		Log: logger,
 	}
 

@@ -4,10 +4,9 @@ package adapters
 import (
 	"encoding/json"
 	"net/http"
-	"sync"
+	"os"
 
-	"github.com/kristiannissen/concertlist/internal/adapters/scrapers"
-	"github.com/kristiannissen/concertlist/internal/ports"
+	"github.com/go-resty/resty/v2"
 	"go.uber.org/zap"
 )
 
@@ -26,24 +25,30 @@ func NewRouter() *http.ServeMux {
 	})
 	// Returns 201 on success. Registered as GET because Vercel cron jobs
 	// always trigger via HTTP GET, never POST.
-	mux.HandleFunc("GET /api/musicevent/richter", func(w http.ResponseWriter, r *http.Request) {
-		// Pass to queue
-		var scraper ports.Scraper = &scrapers.Richter{
-			URL: "https://richter-gladsaxe.dk",
-			Log: logger,
-		}
-		wg := &sync.WaitGroup{}
-		err := scraper.Scrape(r.Context(), wg)
-		wg.Wait()
-		// ctx := r.Context()
-		w.Header().Set("Content-Type", "application/json")
+	mux.HandleFunc("GET /api/scrape/trigger", func(w http.ResponseWriter, r *http.Request) {
+		reg := NewScraperRegistry(logger)
+		client := resty.New()
+		client.SetAuthToken(os.Getenv("VERCEL_OIDC_TOKEN"))
 
-		if err != nil {
+		var failed []string
+		for venue := range reg {
+			body, _ := json.Marshal(map[string]string{"venue": venue})
+
+			resp, err := client.R().SetBody(body).Post("https://arn1.vercel-queue.com/api/v3/topic/venue-scrape")
+			if err != nil || resp.IsError() {
+				logger.Error("failed to enqueue venue", zap.String("venue", venue), zap.Error(err))
+				failed = append(failed, venue)
+				continue // one bad publish shouldn't block the rest
+			}
+			logger.Info("enqueued venue for scraping", zap.String("venue", venue))
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if len(failed) > 0 {
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]string{"status": err.Error()})
+			json.NewEncoder(w).Encode(map[string]any{"status": "partial failure", "failed": failed})
 			return
 		}
-
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 	})
