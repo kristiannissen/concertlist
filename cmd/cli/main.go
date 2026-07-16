@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"sync"
 
 	"github.com/kristiannissen/concertlist/internal/adapters/scrapers"
@@ -12,6 +13,9 @@ import (
 )
 
 func main() {
+	var venue string
+	flag.StringVar(&venue, "venue", "", "enter venue name")
+	flag.Parse()
 	//
 	logger, _ := zap.NewDevelopment()
 	//
@@ -20,26 +24,26 @@ func main() {
 	//
 	logger.Info("Running")
 
-	// Wire up the Richter adapter behind the ports.Scraper interface.
-	var scraper ports.Scraper = &scrapers.Vega{
-		URL: "https://vega.dk/?view=calendar",
-		Log: logger,
-	}
-
 	ctx := context.Background()
 
 	wg := &sync.WaitGroup{}
 
-	// Richter drives the scrape itself via colly using r.URL; data/contentType
-	// aren't used by this adapter, so they're passed empty.
-	err := scraper.Scrape(ctx, wg)
+	var s ports.Scraper
+
+	switch venue {
+	case "vega":
+		s = &scrapers.Vega{URL: "https://vega.dk/?view=calendar", Log: logger}
+	case "richter":
+		s = &scrapers.Richter{URL: "https://richter-gladsaxe.dk/", Log: logger}
+	default:
+		logger.Info("No venue matches")
+	}
+	err := s.Scrape(ctx, wg)
 	//
 	wg.Wait()
 	if err != nil {
 		logger.Error("scrape failed", zap.Error(err))
-		return
 	} else {
 		logger.Info("Scrape done")
 	}
-
 }

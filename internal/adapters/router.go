@@ -4,7 +4,6 @@ package adapters
 import (
 	"encoding/json"
 	"net/http"
-	"os"
 
 	"github.com/go-resty/resty/v2"
 	"go.uber.org/zap"
@@ -28,7 +27,7 @@ func NewRouter() *http.ServeMux {
 	mux.HandleFunc("GET /api/scrape/trigger", func(w http.ResponseWriter, r *http.Request) {
 		reg := NewScraperRegistry(logger)
 		client := resty.New()
-		client.SetAuthToken(os.Getenv("VERCEL_OIDC_TOKEN"))
+		client.SetAuthToken(r.Header.Get("x-vercel-oidc-token"))
 
 		var failed []string
 		for venue := range reg {
