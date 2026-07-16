@@ -25,7 +25,7 @@
          "experimentalTriggers":[
             {
                "type":"queue/v2beta",
-               "topic":"musicevent",
+               "topic":"venue-scrape",
                "retryAfterSeconds":60,
                "initialDelaySeconds":0
             }
