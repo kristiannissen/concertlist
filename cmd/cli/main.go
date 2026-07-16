@@ -13,8 +13,9 @@ import (
 )
 
 func main() {
-	var venue string
+	var venue, URL string
 	flag.StringVar(&venue, "venue", "", "enter venue name")
+	flag.StringVar(&URL, "URL", "", "enter URL to extract")
 	flag.Parse()
 	//
 	logger, _ := zap.NewDevelopment()
@@ -39,6 +40,11 @@ func main() {
 		logger.Info("No venue matches")
 	}
 	err := s.Scrape(ctx, wg)
+
+	//
+	logger.Info("Running Extract")
+	s.Extract(ctx, wg, URL)
+
 	//
 	wg.Wait()
 	if err != nil {

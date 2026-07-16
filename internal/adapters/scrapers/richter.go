@@ -86,7 +86,6 @@ func (r *Richter) Scrape(ctx context.Context, wg *sync.WaitGroup) error {
 	return nil
 }
 
-func (r *Richter) Extract(ctx context.Context, wg *sync.WaitGroup) error {
-
+func (r *Richter) Extract(ctx context.Context, wg *sync.WaitGroup, URL string) error {
 	return nil
 }

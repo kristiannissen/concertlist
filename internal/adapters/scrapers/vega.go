@@ -3,6 +3,7 @@ package scrapers
 
 import (
 	"context"
+	"encoding/json"
 	"net/url"
 	"sync"
 	"time"
@@ -78,7 +79,29 @@ func (r *Vega) Scrape(ctx context.Context, wg *sync.WaitGroup) error {
 	return nil
 }
 
-func (r *Vega) Extract(ctx context.Context, wg *sync.WaitGroup) error {
+func (r *Vega) Extract(ctx context.Context, wg *sync.WaitGroup, URL string) error {
+	parsed, err := url.Parse(URL)
+	if err != nil {
+		return err
+	}
+
+	c := colly.NewCollector(
+		colly.AllowedDomains(parsed.Hostname()),
+		colly.MaxDepth(2),
+		colly.UserAgent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"),
+	)
+	c.Limit(&colly.LimitRule{DomainGlob: "*", Parallelism: 2, RandomDelay: 5 * time.Second})
+
+	c.OnHTML("script#__NEXT_DATA__", func(e *colly.HTMLElement) {
+		var data map[string]interface{}
+		if err := json.Unmarshal([]byte(e.Text), &data); err != nil {
+			r.Log.Error("failed to parse", zap.Error(err))
+			return
+		}
+	})
+	//
+	c.Visit(URL)
+	c.Wait()
 
 	return nil
 }
