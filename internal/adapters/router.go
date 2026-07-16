@@ -4,7 +4,6 @@ package adapters
 import (
 	"encoding/json"
 	"net/http"
-	"os"
 
 	"github.com/go-resty/resty/v2"
 	"go.uber.org/zap"
@@ -28,7 +27,11 @@ func NewRouter() *http.ServeMux {
 	mux.HandleFunc("GET /api/scrape/trigger", func(w http.ResponseWriter, r *http.Request) {
 		reg := NewScraperRegistry(logger)
 		client := resty.New()
-		client.SetAuthToken(os.Getenv("VERCEL_OIDC_TOKEN"))
+		// VERCEL_OIDC_TOKEN as an env var is only populated during the build
+		// step. At runtime, inside a Function, Vercel attaches the OIDC
+		// token to the *incoming* request instead, as the x-vercel-oidc-token
+		// header - so it has to be read off r, not os.Getenv.
+		client.SetAuthToken(r.Header.Get("x-vercel-oidc-token"))
 		client.SetDebug(true)
 
 		var failed []string
