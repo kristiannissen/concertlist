@@ -29,6 +29,7 @@ func NewRouter() *http.ServeMux {
 		reg := NewScraperRegistry(logger)
 		client := resty.New()
 		client.SetAuthToken(os.Getenv("VERCEL_OIDC_TOKEN"))
+		client.SetDebug(true)
 
 		var failed []string
 		for venue := range reg {
