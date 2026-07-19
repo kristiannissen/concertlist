@@ -8,5 +8,5 @@ import (
 
 type Scraper interface {
 	Scrape(ctx context.Context, wg *sync.WaitGroup) error
-	Extract(ctx context.Context, wg *sync.WaitGroup) error
+	Extract(ctx context.Context, wg *sync.WaitGroup, URL string) error
 }

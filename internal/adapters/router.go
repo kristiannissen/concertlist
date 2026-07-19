@@ -2,9 +2,10 @@
 package adapters
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
-	"os"
+	"sync"
 
 	"github.com/go-resty/resty/v2"
 	"go.uber.org/zap"
@@ -28,7 +29,7 @@ func NewRouter() *http.ServeMux {
 	mux.HandleFunc("GET /api/scrape/trigger", func(w http.ResponseWriter, r *http.Request) {
 		reg := NewScraperRegistry(logger)
 		client := resty.New()
-		client.SetAuthToken(os.Getenv("VERCEL_OIDC_TOKEN"))
+		client.SetAuthToken(r.Header.Get("x-vercel-oidc-token"))
 
 		var failed []string
 		for venue := range reg {
@@ -56,22 +57,40 @@ func NewRouter() *http.ServeMux {
 	return mux
 }
 
-// QueueConsumer is the skeleton handler for the "musicevent" Vercel Queues
-// topic (the same topic Richter.Scrape publishes to). It's wired up as a
-// queue/v2beta trigger in vercel.json, bound to its own serverless function
-// (api/queue-consumer/index.go) rather than the shared mux in NewRouter — Vercel
-// Queues triggers apply per-function, and NewRouter's function
-// (api/index.go) is also the public entry point for /api/health and
-// /api/musicevent/richter, so it can't be reused here without air-gapping
-// those routes too.
-//
-// For now this just logs that a message arrived; fill in real message
-// parsing/handling once the consumer's request/payload shape is confirmed.
+// QueueConsumer is the handler for the "venue-scrape" Vercel Queues topic.
+// It's wired up as a queue/v2beta trigger in vercel.json, bound to its own
+// serverless function (api/queue-consumer/index.go) rather than the shared
+// mux in NewRouter — Vercel Queues triggers apply per-function, and
+// NewRouter's function (api/index.go) is also the public entry point for
+// /api/health and /api/scrape/trigger, so it can't be reused here without
+// air-gapping those routes too.
 func QueueConsumer(w http.ResponseWriter, r *http.Request) {
 	logger, _ := zap.NewDevelopment()
 	defer logger.Sync()
 
-	logger.Info("received queue message", zap.String("path", r.URL.Path))
+	var msg struct {
+		Venue string `json:"venue"`
+	}
+	json.NewDecoder(r.Body).Decode(&msg)
 
+	scraper, ok := NewScraperRegistry(logger)[msg.Venue]
+	if !ok {
+		logger.Error("unknown venue", zap.String("venue", msg.Venue))
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	ctx := context.WithValue(r.Context(), "x-vercel-oidc-token", r.Header.Get("x-vercel-oidc-token"))
+
+	wg := &sync.WaitGroup{}
+
+	if err := scraper.Scrape(ctx, wg); err != nil {
+		logger.Error("scrape failed", zap.String("venue", msg.Venue), zap.Error(err))
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	wg.Wait()
+
+	logger.Info("scrape complete", zap.String("venue", msg.Venue))
 	w.WriteHeader(http.StatusOK)
 }
