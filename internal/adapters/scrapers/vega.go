@@ -11,6 +11,7 @@ import (
 	"github.com/go-resty/resty/v2"
 	"github.com/gocolly/colly"
 	"github.com/kristiannissen/concertlist/internal/domain"
+	"github.com/kristiannissen/concertlist/internal/ports"
 	"go.uber.org/zap"
 )
 
@@ -25,14 +26,16 @@ type NextData struct {
 
 type EventData struct {
 	Title     string    `json:"title"`
+	Slug      string    `json:"slug"`
 	Price     int       `json:"price"`
 	FirstDate time.Time `json:"firstDate"`
 	LastDate  time.Time `json:"lastDate"`
 }
 
 type Vega struct {
-	URL string
-	Log *zap.Logger
+	URL  string
+	Log  *zap.Logger
+	Blob ports.Blob
 
 	visited sync.Map
 }
@@ -109,9 +112,6 @@ func (r *Vega) Extract(ctx context.Context, wg *sync.WaitGroup, URL string) erro
 	)
 	c.Limit(&colly.LimitRule{DomainGlob: "*", Parallelism: 2, RandomDelay: 5 * time.Second})
 
-	// Resty client
-	client := resty.New()
-
 	c.OnHTML("script#__NEXT_DATA__", func(e *colly.HTMLElement) {
 		var next NextData
 		if err := json.Unmarshal([]byte(e.Text), &next); err != nil {
@@ -120,17 +120,12 @@ func (r *Vega) Extract(ctx context.Context, wg *sync.WaitGroup, URL string) erro
 		}
 
 		event := next.Props.PageProps.Data
-		r.Log.Info("Extracted event",
-			zap.String("title", event.Title),
-			zap.Time("firstDate", event.FirstDate),
-			zap.Int("price", event.Price),
-		)
-		//
+
 		m := domain.MusicEvent{
 			Context:   "https://schema.org",
 			Type:      "MusicEvent",
 			Name:      event.Title,
-			StartDate: event.FirstDate.String(),
+			StartDate: event.FirstDate.Format(time.RFC3339),
 			Performer: domain.Performer{
 				Type: "MusicGroup",
 				Name: event.Title,
@@ -139,15 +134,28 @@ func (r *Vega) Extract(ctx context.Context, wg *sync.WaitGroup, URL string) erro
 				Type:          "Offer",
 				Price:         event.Price,
 				PriceCurrency: "DKK",
-				URL:           "",
+				URL:           URL,
 			},
 		}
-		// BLOB_STORE_ID
-		_, err := client.R().SetBody(m).SetAuthToken("").Put("")
+
+		if r.Blob == nil {
+			r.Log.Warn("no blob client configured, skipping upload")
+			return
+		}
+
+		body, err := json.Marshal(m)
+		if err != nil {
+			r.Log.Error("failed to marshal event", zap.Error(err))
+			return
+		}
+
+		obj, err := r.Blob.Put(ctx, event.Slug+".json", body, ports.WithContentType("application/json"))
 		if err != nil {
 			r.Log.Error("failed to put blob", zap.Error(err))
 			return
 		}
+
+		r.Log.Info("stored event", zap.String("url", obj.URL))
 	})
 	//
 	c.Visit(URL)
