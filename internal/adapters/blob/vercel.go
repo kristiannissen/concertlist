@@ -33,9 +33,13 @@ type VercelBlob struct {
 	client  *resty.Client
 }
 
-// New builds a VercelBlob from a BLOB_READ_WRITE_TOKEN. The store ID doesn't
-// need to be supplied separately — it's embedded in the token itself
+// New builds a VercelBlob from a static BLOB_READ_WRITE_TOKEN. The store ID
+// doesn't need to be supplied separately — it's embedded in the token itself
 // (vercel_blob_rw_<storeId>_<random>).
+//
+// Blob stores created without an explicit read-write token (OIDC-only
+// stores — see NewFromOIDC) won't have this env var at all; that's expected,
+// not a misconfiguration.
 func New(token string) (*VercelBlob, error) {
 	parts := strings.Split(token, "_")
 	if len(parts) < 4 {
@@ -45,6 +49,37 @@ func New(token string) (*VercelBlob, error) {
 	return &VercelBlob{
 		token:   token,
 		storeID: parts[3],
+		client:  resty.New(),
+	}, nil
+}
+
+// NewFromOIDC builds a VercelBlob authenticated with a Vercel OIDC token
+// instead of a static read-write token. This is the model for Blob stores
+// that were connected via "System Environment Variables" rather than an
+// issued BLOB_READ_WRITE_TOKEN — auth is a short-lived, per-request token
+// rather than a persisted secret.
+//
+// oidcToken must come from the current request/build, not a cached value:
+//   - Inside a Vercel Function, Vercel sets it on the incoming request's
+//     x-vercel-oidc-token header (not an env var) — see
+//     https://vercel.com/docs/oidc#in-vercel-functions.
+//   - During builds and local dev (`vercel env pull`), it's the
+//     VERCEL_OIDC_TOKEN env var instead.
+//
+// storeID is the BLOB_STORE_ID env var, in either "store_<id>" or bare
+// "<id>" form (both are accepted; the "store_" prefix is stripped since the
+// API wants the bare form).
+func NewFromOIDC(oidcToken, storeID string) (*VercelBlob, error) {
+	if oidcToken == "" {
+		return nil, fmt.Errorf("blob: empty OIDC token")
+	}
+	if storeID == "" {
+		return nil, fmt.Errorf("blob: empty BLOB_STORE_ID")
+	}
+
+	return &VercelBlob{
+		token:   oidcToken,
+		storeID: strings.TrimPrefix(storeID, "store_"),
 		client:  resty.New(),
 	}, nil
 }

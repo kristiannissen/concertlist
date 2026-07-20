@@ -27,7 +27,7 @@ func NewRouter() *http.ServeMux {
 	// Returns 201 on success. Registered as GET because Vercel cron jobs
 	// always trigger via HTTP GET, never POST.
 	mux.HandleFunc("GET /api/scrape/trigger", func(w http.ResponseWriter, r *http.Request) {
-		reg := NewScraperRegistry(logger)
+		reg := NewScraperRegistry(logger, r.Header.Get("x-vercel-oidc-token"))
 		client := resty.New()
 		client.SetAuthToken(r.Header.Get("x-vercel-oidc-token"))
 
@@ -73,7 +73,7 @@ func QueueConsumer(w http.ResponseWriter, r *http.Request) {
 	}
 	json.NewDecoder(r.Body).Decode(&msg)
 
-	scraper, ok := NewScraperRegistry(logger)[msg.Venue]
+	scraper, ok := NewScraperRegistry(logger, r.Header.Get("x-vercel-oidc-token"))[msg.Venue]
 	if !ok {
 		logger.Error("unknown venue", zap.String("venue", msg.Venue))
 		w.WriteHeader(http.StatusOK)
