@@ -70,8 +70,8 @@ func (r *Vega) Scrape(ctx context.Context, wg *sync.WaitGroup) error {
 			defer wg.Done()
 
 			v := map[string]string{
-				"name": "Vega",
-				"url":  l,
+				"venue": "vega",
+				"url":   l,
 			}
 
 			_, err := client.R().SetBody(v).Post("https://arn1.vercel-queue.com/api/v3/topic/event-extract")
