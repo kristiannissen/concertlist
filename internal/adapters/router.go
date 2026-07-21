@@ -57,14 +57,14 @@ func NewRouter() *http.ServeMux {
 	return mux
 }
 
-// QueueConsumer is the handler for the "venue-scrape" Vercel Queues topic.
+// QueueScrapeConsumer is the handler for the "venue-scrape" Vercel Queues topic.
 // It's wired up as a queue/v2beta trigger in vercel.json, bound to its own
 // serverless function (api/queue-consumer/index.go) rather than the shared
 // mux in NewRouter — Vercel Queues triggers apply per-function, and
 // NewRouter's function (api/index.go) is also the public entry point for
 // /api/health and /api/scrape/trigger, so it can't be reused here without
 // air-gapping those routes too.
-func QueueConsumer(w http.ResponseWriter, r *http.Request) {
+func EventScrapeConsumer(w http.ResponseWriter, r *http.Request) {
 	logger, _ := zap.NewDevelopment()
 	defer logger.Sync()
 
@@ -92,5 +92,34 @@ func QueueConsumer(w http.ResponseWriter, r *http.Request) {
 	wg.Wait()
 
 	logger.Info("scrape complete", zap.String("venue", msg.Venue))
+	w.WriteHeader(http.StatusOK)
+}
+
+func EventExtractConsumer(w http.ResponseWriter, r *http.Request) {
+	logger, _ := zap.NewDevelopment()
+	defer logger.Sync()
+
+	var msg struct {
+		Venue string `json:"venue"`
+		URL   string `json:"url"`
+	}
+	json.NewDecoder(r.Body).Decode(&msg)
+
+	scraper, ok := NewScraperRegistry(logger, r.Header.Get("x-vercel-oidc-token"))[msg.Venue]
+	if !ok {
+		logger.Error("unknown venue", zap.String("venue", msg.Venue))
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	wg := &sync.WaitGroup{}
+
+	if err := scraper.Extract(r.Context(), wg, msg.URL); err != nil {
+		logger.Error("extract failed", zap.String("URL", msg.URL), zap.String("venue", msg.Venue), zap.Error(err))
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+	wg.Wait()
+
+	logger.Info("extract complete", zap.String("URL", msg.URL))
 	w.WriteHeader(http.StatusOK)
 }
