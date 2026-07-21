@@ -57,14 +57,14 @@ func NewRouter() *http.ServeMux {
 	return mux
 }
 
-// QueueConsumer is the handler for the "venue-scrape" Vercel Queues topic.
+// QueueScrapeConsumer is the handler for the "venue-scrape" Vercel Queues topic.
 // It's wired up as a queue/v2beta trigger in vercel.json, bound to its own
 // serverless function (api/queue-consumer/index.go) rather than the shared
 // mux in NewRouter — Vercel Queues triggers apply per-function, and
 // NewRouter's function (api/index.go) is also the public entry point for
 // /api/health and /api/scrape/trigger, so it can't be reused here without
 // air-gapping those routes too.
-func QueueConsumer(w http.ResponseWriter, r *http.Request) {
+func EventScrapeConsumer(w http.ResponseWriter, r *http.Request) {
 	logger, _ := zap.NewDevelopment()
 	defer logger.Sync()
 

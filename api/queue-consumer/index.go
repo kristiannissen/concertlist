@@ -14,5 +14,5 @@ import (
 // This function must be public for Vercel to detect it.
 func Handler(w http.ResponseWriter, r *http.Request) {
 
-	gateway.QueueConsumer(w, r)
+	gateway.EventScrapeConsumer(w, r)
 }
