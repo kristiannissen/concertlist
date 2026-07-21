@@ -3,6 +3,9 @@
    "framework":null,
    "outputDirectory":"public",
    "regions":["arn1"],
+   "git":{
+      "deploymentEnabled":false
+   },
    "rewrites":[
       {
          "source":"/api/queue-consumer",
