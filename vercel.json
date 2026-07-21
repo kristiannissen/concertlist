@@ -16,7 +16,7 @@
    },
    "crons":[
       {
-         "path":"/api/musicevent/richter",
+         "path":"/api/scrape/trigger",
          "schedule":"0 0 * * *"
       }
    ],
@@ -26,6 +26,16 @@
             {
                "type":"queue/v2beta",
                "topic":"venue-scrape",
+               "retryAfterSeconds":60,
+               "initialDelaySeconds":0
+            }
+         ]
+      },
+      "api/queue-extract-consumer/index.go":{
+         "experimentalTriggers":[
+            {
+               "type":"queue/v2beta",
+               "topic":"event-extract",
                "retryAfterSeconds":60,
                "initialDelaySeconds":0
             }
