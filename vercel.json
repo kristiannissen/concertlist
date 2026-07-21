@@ -5,6 +5,14 @@
    "regions":["arn1"],
    "rewrites":[
       {
+         "source":"/api/queue-consumer",
+         "destination":"/api/queue-consumer"
+      },
+      {
+         "source":"/api/queue-extract-consumer",
+         "destination":"/api/queue-extract-consumer"
+      },
+      {
          "source":"/api/(.*)",
          "destination":"/api"
       }
