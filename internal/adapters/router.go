@@ -99,4 +99,27 @@ func EventExtractConsumer(w http.ResponseWriter, r *http.Request) {
 	logger, _ := zap.NewDevelopment()
 	defer logger.Sync()
 
+	var msg struct {
+		Venue string `json:"venue"`
+		URL   string `json:"url"`
+	}
+	json.NewDecoder(r.Body).Decode(&msg)
+
+	scraper, ok := NewScraperRegistry(logger, r.Header.Get("x-vercel-oidc-token"))[msg.Venue]
+	if !ok {
+		logger.Error("unknown venue", zap.String("venue", msg.Venue))
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	wg := &sync.WaitGroup{}
+
+	if err := scraper.Extract(r.Context(), wg, msg.URL); err != nil {
+		logger.Error("extract failed", zap.String("URL", msg.URL), zap.String("venue", msg.Venue), zap.Error(err))
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+	wg.Wait()
+
+	logger.Info("extract complete", zap.String("URL", msg.URL))
+	w.WriteHeader(http.StatusOK)
 }
