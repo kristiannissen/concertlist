@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"os"
 	"sync"
 
 	"github.com/go-resty/resty/v2"
@@ -35,7 +36,10 @@ func NewRouter() *http.ServeMux {
 		for venue := range reg {
 			body, _ := json.Marshal(map[string]string{"venue": venue})
 
-			resp, err := client.R().SetBody(body).Post("https://arn1.vercel-queue.com/api/v3/topic/venue-scrape")
+			resp, err := client.R().
+				SetHeader("Vqs-Deployment-Id", os.Getenv("VERCEL_DEPLOYMENT_ID")).
+				SetBody(body).
+				Post("https://arn1.vercel-queue.com/api/v3/topic/venue-scrape")
 			if err != nil || resp.IsError() {
 				logger.Error("failed to enqueue venue", zap.String("venue", venue), zap.Error(err))
 				failed = append(failed, venue)

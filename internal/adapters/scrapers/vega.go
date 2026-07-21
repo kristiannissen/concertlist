@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/url"
+	"os"
 	"sync"
 	"time"
 
@@ -75,7 +76,10 @@ func (r *Vega) Scrape(ctx context.Context, wg *sync.WaitGroup) error {
 				"url":   l,
 			}
 
-			_, err := client.R().SetBody(v).Post("https://arn1.vercel-queue.com/api/v3/topic/event-extract")
+			_, err := client.R().
+				SetHeader("Vqs-Deployment-Id", os.Getenv("VERCEL_DEPLOYMENT_ID")).
+				SetBody(v).
+				Post("https://arn1.vercel-queue.com/api/v3/topic/event-extract")
 			if err != nil {
 				r.Log.Error("post failed", zap.String("URL", l), zap.Error(err))
 			}
