@@ -94,3 +94,9 @@ func QueueConsumer(w http.ResponseWriter, r *http.Request) {
 	logger.Info("scrape complete", zap.String("venue", msg.Venue))
 	w.WriteHeader(http.StatusOK)
 }
+
+func EventExtractConsumer(w http.ResponseWriter, r *http.Request) {
+	logger, _ := zap.NewDevelopment()
+	defer logger.Sync()
+
+}

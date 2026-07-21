@@ -33,3 +33,7 @@ func NewRouter() *http.ServeMux {
 func QueueConsumer(w http.ResponseWriter, r *http.Request) {
 	adapters.QueueConsumer(w, r)
 }
+
+func EventExtractConsumer(w http.ResponseWriter, r *http.Request) {
+	adapters.EventExtractConsumer(w, r)
+}
