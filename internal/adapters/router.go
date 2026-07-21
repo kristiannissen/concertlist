@@ -72,6 +72,7 @@ func EventScrapeConsumer(w http.ResponseWriter, r *http.Request) {
 		Venue string `json:"venue"`
 	}
 	json.NewDecoder(r.Body).Decode(&msg)
+	logger.Info("incoming message", zap.String("venue", msg.Venue))
 
 	scraper, ok := NewScraperRegistry(logger, r.Header.Get("x-vercel-oidc-token"))[msg.Venue]
 	if !ok {
@@ -104,6 +105,7 @@ func EventExtractConsumer(w http.ResponseWriter, r *http.Request) {
 		URL   string `json:"url"`
 	}
 	json.NewDecoder(r.Body).Decode(&msg)
+	logger.Info("incoming message", zap.String("venue", msg.Venue))
 
 	scraper, ok := NewScraperRegistry(logger, r.Header.Get("x-vercel-oidc-token"))[msg.Venue]
 	if !ok {
