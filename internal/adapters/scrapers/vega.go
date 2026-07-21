@@ -54,8 +54,9 @@ func (r *Vega) Scrape(ctx context.Context, wg *sync.WaitGroup) error {
 	)
 	c.Limit(&colly.LimitRule{DomainGlob: "*", Parallelism: 2, RandomDelay: 5 * time.Second})
 	// Resty client
+	oidcToken, _ := ctx.Value("x-vercel-oidc-token").(string)
 	client := resty.New()
-	client.SetAuthToken("")
+	client.SetAuthToken(oidcToken)
 	// Custom scraper job that looks for all relevant event URLs
 	// and sends them off to a new queue for Extract()
 	c.OnHTML("[data-theme='secondary']", func(e *colly.HTMLElement) {
