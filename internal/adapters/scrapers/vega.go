@@ -117,6 +117,14 @@ func (r *Vega) Extract(ctx context.Context, wg *sync.WaitGroup, URL string) erro
 	)
 	c.Limit(&colly.LimitRule{DomainGlob: "*", Parallelism: 2, RandomDelay: 5 * time.Second})
 
+	// Extract() is invoked from a queue message with only the target event
+	// URL — there's no real referring page in scope here — so set the
+	// venue's own base URL as Referer rather than sending the request
+	// referer-less.
+	c.OnRequest(func(req *colly.Request) {
+		req.Headers.Set("Referer", r.URL)
+	})
+
 	c.OnHTML("script#__NEXT_DATA__", func(e *colly.HTMLElement) {
 		var next NextData
 		if err := json.Unmarshal([]byte(e.Text), &next); err != nil {
