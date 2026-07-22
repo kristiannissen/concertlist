@@ -182,7 +182,10 @@ func (r *Vega) Extract(ctx context.Context, wg *sync.WaitGroup, URL string) erro
 			return
 		}
 
-		obj, err := r.Blob.Put(ctx, event.Slug+".json", body, ports.WithContentType("application/json"))
+		obj, err := r.Blob.Put(ctx, event.Slug+".json", body,
+			ports.WithContentType("application/json"),
+			ports.WithAccess(ports.BlobAccessPrivate), // this store is configured for private access; the default (public) is rejected with a 400
+		)
 		if err != nil {
 			r.Log.Error("failed to put blob", zap.Error(err))
 			return
