@@ -4,6 +4,7 @@ package adapters
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"os"
 	"sync"
@@ -90,15 +91,23 @@ func EventScrapeConsumer(w http.ResponseWriter, r *http.Request) {
 	logger := newLogger()
 	defer logger.Sync()
 
+	rawBody, _ := io.ReadAll(r.Body)
+
 	var msg struct {
 		Venue string `json:"venue"`
 	}
-	json.NewDecoder(r.Body).Decode(&msg)
-	logger.Info("incoming message", zap.String("venue", msg.Venue))
+	if err := json.Unmarshal(rawBody, &msg); err != nil {
+		// Previously this error was silently discarded (json.NewDecoder(...).Decode(&msg)
+		// with no err check), which is exactly how "venue" ended up empty with no clue why.
+		logger.Error("failed to decode message", zap.Error(err), zap.ByteString("body", rawBody), zap.Int("bodyLen", len(rawBody)))
+		w.WriteHeader(http.StatusOK) // malformed payload won't fix itself on retry; ack and drop it
+		return
+	}
+	logger.Info("incoming message", zap.String("venue", msg.Venue), zap.Int("bodyLen", len(rawBody)))
 
 	scraper, ok := NewScraperRegistry(logger, r.Header.Get("x-vercel-oidc-token"))[msg.Venue]
 	if !ok {
-		logger.Error("unknown venue", zap.String("venue", msg.Venue))
+		logger.Error("unknown venue", zap.String("venue", msg.Venue), zap.ByteString("body", rawBody))
 		w.WriteHeader(http.StatusOK)
 		return
 	}
@@ -122,16 +131,22 @@ func EventExtractConsumer(w http.ResponseWriter, r *http.Request) {
 	logger := newLogger()
 	defer logger.Sync()
 
+	rawBody, _ := io.ReadAll(r.Body)
+
 	var msg struct {
 		Venue string `json:"venue"`
 		URL   string `json:"url"`
 	}
-	json.NewDecoder(r.Body).Decode(&msg)
-	logger.Info("incoming message", zap.String("venue", msg.Venue))
+	if err := json.Unmarshal(rawBody, &msg); err != nil {
+		logger.Error("failed to decode message", zap.Error(err), zap.ByteString("body", rawBody), zap.Int("bodyLen", len(rawBody)))
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	logger.Info("incoming message", zap.String("venue", msg.Venue), zap.Int("bodyLen", len(rawBody)))
 
 	scraper, ok := NewScraperRegistry(logger, r.Header.Get("x-vercel-oidc-token"))[msg.Venue]
 	if !ok {
-		logger.Error("unknown venue", zap.String("venue", msg.Venue))
+		logger.Error("unknown venue", zap.String("venue", msg.Venue), zap.ByteString("body", rawBody))
 		w.WriteHeader(http.StatusOK)
 		return
 	}
