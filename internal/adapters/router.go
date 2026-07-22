@@ -12,9 +12,27 @@ import (
 	"go.uber.org/zap"
 )
 
+// newLogger builds a development-style zap logger with automatic
+// stacktrace-on-Error disabled. Vercel's log capture/export truncates long
+// multi-line entries and keeps the tail, not the head — zap's default
+// stacktrace (added to every Error+ log) reliably pushes the actual error
+// message and its fields out of that window, leaving only an unhelpful
+// fragment of the stacktrace behind. The call site zap already logs plus
+// the message text is enough to locate a bug; the error text itself is
+// what actually matters and now won't get truncated away.
+func newLogger() *zap.Logger {
+	cfg := zap.NewDevelopmentConfig()
+	cfg.DisableStacktrace = true
+	logger, err := cfg.Build()
+	if err != nil {
+		return zap.NewNop()
+	}
+	return logger
+}
+
 func NewRouter() *http.ServeMux {
 	mux := http.NewServeMux()
-	logger, _ := zap.NewDevelopment()
+	logger := newLogger()
 	//
 	defer logger.Sync()
 
@@ -69,7 +87,7 @@ func NewRouter() *http.ServeMux {
 // /api/health and /api/scrape/trigger, so it can't be reused here without
 // air-gapping those routes too.
 func EventScrapeConsumer(w http.ResponseWriter, r *http.Request) {
-	logger, _ := zap.NewDevelopment()
+	logger := newLogger()
 	defer logger.Sync()
 
 	var msg struct {
@@ -101,7 +119,7 @@ func EventScrapeConsumer(w http.ResponseWriter, r *http.Request) {
 }
 
 func EventExtractConsumer(w http.ResponseWriter, r *http.Request) {
-	logger, _ := zap.NewDevelopment()
+	logger := newLogger()
 	defer logger.Sync()
 
 	var msg struct {
