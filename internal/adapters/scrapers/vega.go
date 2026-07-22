@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"net/url"
 	"os"
+	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/go-resty/resty/v2"
@@ -15,6 +17,16 @@ import (
 	"github.com/kristiannissen/concertlist/internal/ports"
 	"go.uber.org/zap"
 )
+
+// extractDelayStep is how far apart, in queue-visibility time, successive
+// event-extract messages from a single Scrape() run become deliverable.
+// Push-mode delivery has no concurrency cap wired up in vercel.json (and
+// Vercel doesn't currently expose one for this beta trigger type via
+// vercel.json), so without this every discovered event page is published
+// to the queue back-to-back and gets pushed to consumers in a burst —
+// hammering the venue's site with near-simultaneous requests instead of
+// spacing them out.
+const extractDelayStep = 15 * time.Second
 
 // __NEXT_DATA__
 type NextData struct {
@@ -38,7 +50,8 @@ type Vega struct {
 	Log  *zap.Logger
 	Blob ports.Blob
 
-	visited sync.Map
+	visited  sync.Map
+	extractN atomic.Int64 // counts event-extract publishes within one Scrape() run, to stagger their delivery delay
 }
 
 func (r *Vega) Scrape(ctx context.Context, wg *sync.WaitGroup) error {
@@ -76,8 +89,15 @@ func (r *Vega) Scrape(ctx context.Context, wg *sync.WaitGroup) error {
 				"url":   l,
 			}
 
+			// Stagger delivery: the Nth message published this run becomes
+			// visible to the push consumer N * extractDelayStep later, so
+			// EventExtractConsumer invocations (and the requests they make
+			// to the venue's site) land spread out instead of all at once.
+			delaySeconds := int(r.extractN.Add(1)) * int(extractDelayStep.Seconds())
+
 			_, err := client.R().
 				SetHeader("Vqs-Deployment-Id", os.Getenv("VERCEL_DEPLOYMENT_ID")).
+				SetHeader("Vqs-Delay-Seconds", strconv.Itoa(delaySeconds)).
 				SetBody(v).
 				Post("https://arn1.vercel-queue.com/api/v3/topic/event-extract")
 			if err != nil {
